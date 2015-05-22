@@ -7,6 +7,7 @@
 #include "../rbf/rbfm.h"
 
 # define IX_EOF (-1)  // end of the index scan
+#define ROOT_PAGE 0
 
 class IX_ScanIterator;
 class IXFileHandle;
@@ -46,6 +47,28 @@ class IndexManager {
         // Print the B+ tree JSON record in pre-order
         void printBtree(IXFileHandle &ixfileHandle, const Attribute &attribute) const;
 
+        RC formNonLeafHeader(unsigned char *Page);
+        RC formLeafHeader(unsigned char *Page);
+        RC readFreeSpacePtr(unsigned char *Page,int &freeSpace);
+        RC setFreeSpacePtr(unsigned char *Page,int offset);
+        RC checkSpaceLeafPage(unsigned char *leafPage,const Attribute &attribute, const void *key, const RID &rid);
+        RC insertLeafEntry(unsigned char *leafPage,const Attribute &attribute, const void *key, const RID &rid);
+        RC getnoofEntries(unsigned char *Page,int &entries);
+        RC getrecEntries(unsigned char *Page,int &entries,int offset);
+        RC setrecEntries(unsigned char *Page,int value,int offset);
+        RC setnoofEntries(unsigned char *Page,int entries);
+        RC getNonLeafFlag(unsigned char *Page);
+        RC copyEntryToPage(unsigned char *leafPage,int offset,int recEntries,const Attribute &attribute, const void *key, const RID &rid);
+        RC splitLeafPage(unsigned char *leafPage,unsigned char *newPage,IXFileHandle &ixfileHandle, int pageNo,const Attribute &attribute);
+        RC splitNonLeafPage(unsigned char *nonLeafPage,unsigned char *newPage,const Attribute &attribute);
+        RC entryLength(unsigned char *leafPage,int offset,int &length,const Attribute &attribute);
+        RC entryLengthNonLeaf(unsigned char *nonLeafPage,int offset,int &length,const Attribute &attribute);
+        RC setDLLpointers(IXFileHandle &ixfileHandle,unsigned char *newPage,unsigned char *oldPage,int oldPageNo);
+        RC fillRootPage(unsigned char *rootPage,int leftPageNo,int rightPageNo,unsigned char *firstEntry,int length,const Attribute &attribute);
+        RC getnoofEntriesNonLeaf(unsigned char *Page,int &entries);
+        RC setnoofEntriesNonLeaf(unsigned char *Page,int entries);
+        RC findPath(unsigned char *rootPage,int &childPageNo,const void *key,const Attribute &attribute);
+
     protected:
         IndexManager();
         ~IndexManager();
@@ -71,6 +94,9 @@ class IXFileHandle {
 
         IXFileHandle();  							// Constructor
         ~IXFileHandle(); 							// Destructor
+        //PagedFileManager pfManager;
+        FileHandle fileHandle;
+
 };
 
 // print out the error message for a given return code
