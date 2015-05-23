@@ -8,6 +8,8 @@
 
 # define IX_EOF (-1)  // end of the index scan
 #define ROOT_PAGE 0
+#define NON_LEAF 20000
+#define LEAF -1
 
 class IX_ScanIterator;
 class IXFileHandle;
@@ -68,7 +70,7 @@ class IndexManager {
         RC getnoofEntriesNonLeaf(unsigned char *Page,int &entries);
         RC setnoofEntriesNonLeaf(unsigned char *Page,int entries);
         RC findPath(unsigned char *rootPage,int &childPageNo,const void *key,const Attribute &attribute);
-
+       // RC getFlag(unsigned char *page,bool &flag);
     protected:
         IndexManager();
         ~IndexManager();
@@ -78,12 +80,28 @@ class IndexManager {
 };
 
 class IX_ScanIterator {
+	FileHandle* fileHandle;
+	Attribute attribute;
+	int currentPageNo;
+	int currentOffset;
+	int noOfEntries;
+	int currentEntry;
+	 bool lowKeyInclusive;
+	 bool highKeyInclusive;
+	 bool newentry;
+	 int noofrids;
+	 int currentrid;
+	 unsigned char *lowkey;
+	 unsigned char *highkey;
+	 unsigned char pagedata[PAGE_SIZE];
     public:
+		RC loadscandata(FileHandle&,Attribute,const void*,const void*,bool,bool);
         IX_ScanIterator();  							// Constructor
         ~IX_ScanIterator(); 							// Destructor
-
+        short AttributeSize(Attribute,const void*);
         RC getNextEntry(RID &rid, void *key);  		// Get next matching entry
         RC close();             						// Terminate index scan
+
 };
 
 

@@ -244,16 +244,6 @@ RC IndexManager::deleteEntry(IXFileHandle &ixfileHandle, const Attribute &attrib
 }
 
 
-RC IndexManager::scan(IXFileHandle &ixfileHandle,
-        const Attribute &attribute,
-        const void      *lowKey,
-        const void      *highKey,
-        bool			lowKeyInclusive,
-        bool        	highKeyInclusive,
-        IX_ScanIterator &ix_ScanIterator)
-{
-    return -1;
-}
 
 void IndexManager::printBtree(IXFileHandle &ixfileHandle, const Attribute &attribute) const {
 }
@@ -769,7 +759,73 @@ RC IndexManager::getNonLeafFlag(unsigned char *Page)
 	memcpy(&flag,Page+PAGE_SIZE-(3*sizeof(int)),sizeof(int));
 	return flag;
 }
+short IX_ScanIterator::AttributeSize(Attribute attr,const void* value)
+{
 
+			switch(attr.type)
+					{
+					case TypeInt:
+						return 4;
+						break;
+
+					case TypeReal:
+						return 4;
+						break;
+					case TypeVarChar:
+
+							int varcharSize;
+							memcpy(&varcharSize,(char*)value,4);
+							return (varcharSize+sizeof(int));
+							break;
+
+					}
+
+
+	return -1;
+
+}
+RC IndexManager::scan(IXFileHandle &ixfileHandle,
+                const Attribute &attribute,
+                const void *lowKey,
+                const void *highKey,
+                bool lowKeyInclusive,
+                bool highKeyInclusive,
+                IX_ScanIterator &ix_ScanIterator)
+{
+	int success=ix_ScanIterator.loadscandata(ixfileHandle.fileHandle,
+			attribute,
+			lowKey,
+			highKey,
+			lowKeyInclusive,
+			highKeyInclusive);
+	return success;
+}
+RC IX_ScanIterator::loadscandata(FileHandle &fileH,Attribute attr,const void* lowk,const void* highk,bool lowkeyincl,bool highkeyincl)
+{
+	fileHandle= &fileH;
+	attribute=attr;
+	short attrslk=AttributeSize(attribute,lowk);
+	lowkey=new unsigned char[attrslk];
+	short attrshk=AttributeSize(attribute,highk);
+	highkey=new unsigned char[attrshk];
+	memcpy(lowkey,lowk,attrslk);
+	memcpy(highkey,highk,attrshk);
+	lowKeyInclusive=lowkeyincl;
+	highKeyInclusive=highkeyincl;
+	currentPageNo=ROOT_PAGE;
+	currentOffset=0;
+	currentEntry=1;
+	fileHandle->readPage(currentPageNo,pagedata);
+	newentry=true;
+	noofrids=0;
+	currentrid=1;
+	IndexManager::instance()->getnoofEntriesNonLeaf(pagedata,noOfEntries);
+
+
+	return -1;
+
+
+}
 
 IX_ScanIterator::IX_ScanIterator()
 {
@@ -781,7 +837,394 @@ IX_ScanIterator::~IX_ScanIterator()
 
 RC IX_ScanIterator::getNextEntry(RID &rid, void *key)
 {
-    return -1;
+	if(currentPageNo=-1)
+		return IX_EOF;
+
+	int flag=IndexManager::instance()->getNonLeafFlag(pagedata);
+	if(currentEntry>noOfEntries)
+		return IX_EOF;
+
+	if(flag==NON_LEAF)
+	{
+		int lowpointer;
+		if(currentEntry==noOfEntries)
+			{
+				memcpy(&currentPageNo,pagedata+currentOffset,sizeof(int));
+				currentOffset=0;
+				fileHandle->readPage(currentPageNo,pagedata);
+				IndexManager::instance()->getnoofEntriesNonLeaf(pagedata,noOfEntries);
+				getNextEntry(rid,key);
+
+			}
+		switch(attribute.type)
+		{
+			case TypeInt:
+				int k;
+
+				int lowk;
+				memcpy(&lowpointer,pagedata+currentOffset,sizeof(int));
+				memcpy(&k,pagedata+currentOffset+sizeof(int),sizeof(int));
+				memcpy(&lowk,lowkey,sizeof(int));
+
+
+				if(lowk<k)
+				{
+					currentPageNo=lowpointer;
+					currentOffset=0;
+					fileHandle->readPage(currentPageNo,pagedata);
+					int f=IndexManager::instance()->getNonLeafFlag(pagedata);
+					if(f==NON_LEAF)
+						IndexManager::instance()->getnoofEntriesNonLeaf(pagedata,noOfEntries);
+					else
+					{
+						IndexManager::instance()->getnoofEntries(pagedata,noOfEntries);
+						newentry=true;
+					}
+				}
+				else
+				{
+					currentOffset=currentOffset+sizeof(int)*2;
+					currentEntry=currentEntry+1;
+
+
+				}
+				break;
+			case TypeReal:
+				float kf;
+
+				float flowk;
+				memcpy(&lowpointer,pagedata+currentOffset,sizeof(int));
+				memcpy(&kf,pagedata+currentOffset+sizeof(int),sizeof(float));
+				memcpy(&flowk,lowkey,sizeof(float));
+
+
+				if(flowk<kf)
+				{
+					currentPageNo=lowpointer;
+					currentOffset=0;
+					fileHandle->readPage(currentPageNo,pagedata);
+					int f=IndexManager::instance()->getNonLeafFlag(pagedata);
+					if(f==NON_LEAF)
+						IndexManager::instance()->getnoofEntriesNonLeaf(pagedata,noOfEntries);
+					else
+					{
+						IndexManager::instance()->getnoofEntries(pagedata,noOfEntries);
+					newentry=true;
+					}
+					}
+				else
+				{
+					currentOffset=currentOffset+sizeof(int)+sizeof(float);
+					currentEntry=currentEntry+1;
+
+
+				}
+
+				break;
+			case TypeVarChar:
+				int keysize;
+				memcpy(&keysize,lowkey,sizeof(int));
+
+				char* lowkeyvarchar=new char[keysize+1];
+				memset(lowkeyvarchar,'\0',keysize+1);
+				memcpy(lowkeyvarchar,lowkey+sizeof(int),keysize);
+				string varlowk(lowkeyvarchar);
+				memcpy(&lowpointer,pagedata+currentOffset,sizeof(int));
+				memcpy(&keysize,pagedata+currentOffset+sizeof(int),sizeof(int));
+				char* keyvarchar=new char[keysize+1];
+				memset(keyvarchar,'\0',keysize+1);
+				memcpy(keyvarchar,pagedata+currentOffset+sizeof(int)*2,keysize);
+				string vark(keyvarchar);
+				if(varlowk.compare(vark)<0)
+				{
+					currentPageNo=lowpointer;
+					currentOffset=0;
+					fileHandle->readPage(currentPageNo,pagedata);
+					int f=IndexManager::instance()->getNonLeafFlag(pagedata);
+					if(f==NON_LEAF)
+						IndexManager::instance()->getnoofEntriesNonLeaf(pagedata,noOfEntries);
+					else
+					{
+						IndexManager::instance()->getnoofEntries(pagedata,noOfEntries);
+						newentry=true;
+					}
+
+				}
+				else
+				{
+					currentOffset=currentOffset+sizeof(int)*2+keysize;
+					currentEntry=currentEntry+1;
+				}
+
+				delete lowkeyvarchar;
+				break;
+
+
+		}
+		return getNextEntry(rid,key);
+	}
+	else
+	{
+		if(currentEntry>noOfEntries)
+		{
+			currentEntry=1;
+			currentOffset=0;
+			int right;
+			memcpy(&right,pagedata+PAGE_SIZE-sizeof(int),sizeof(int));
+			if(right==-1)
+				return IX_EOF;
+
+			fileHandle->readPage(currentPageNo,pagedata);
+			IndexManager::instance()->getnoofEntries(pagedata,noOfEntries);
+			currentrid=1;
+			newentry=true;
+		}
+		switch(attribute.type)
+		{
+			case TypeInt:
+				//int noOfrids;
+
+
+				if(newentry)
+				{
+					 int keycmp;
+					 memcpy(&keycmp,pagedata+currentOffset+sizeof(int),sizeof(int));
+					 int highkeycmp;
+					 memcpy(&highkeycmp,highkey,sizeof(int));
+					 if(highkeycmp>=keycmp)
+					 {
+						 if(!highKeyInclusive)
+						 {
+							 return IX_EOF;
+						 }
+						 else
+						 {
+							 if(highkeycmp>keycmp)
+								 return IX_EOF;
+						 }
+					 }
+
+					if(!lowKeyInclusive)
+					{
+					 int lowkeycmp;
+					 memcpy(&lowkeycmp,lowkey,sizeof(int));
+					// int keycmp;
+					// memcpy(&keycmp,pagedata+currentOffset+sizeof(int),sizeof(int));
+					 if(lowkeycmp==keycmp)
+					 {
+						 currentOffset=currentOffset+sizeof(int)*2+noofrids*sizeof(int);
+					 }
+					 currentrid=1;
+					 newentry=true;
+					  return getNextEntry(rid,key);
+					}
+
+
+					memcpy(&noofrids,pagedata+currentOffset,sizeof(int));
+					currentrid=1;
+					memcpy(&rid,pagedata+currentOffset+(currentrid-1)*sizeof(rid)+sizeof(int)*2,sizeof(rid));
+					key=new unsigned char[sizeof(int)];
+					memcpy(key,pagedata+currentOffset+sizeof(int),sizeof(int));
+					newentry=false;
+					currentrid++;
+					return 0;
+
+				}
+				else
+				{
+					if(currentrid<=noofrids)
+					{
+						key=new unsigned char[sizeof(int)];
+						memcpy(&rid,pagedata+currentOffset+(currentrid-1)*sizeof(rid)+sizeof(int)*2,sizeof(rid));
+						memcpy(key,pagedata+currentOffset+sizeof(int),sizeof(int));
+						if(currentrid==noofrids)
+						{
+							newentry=true;
+							currentOffset=currentOffset+sizeof(int)*2+sizeof(rid)*noofrids;
+							currentEntry++;
+						}
+
+						else
+							currentrid++;
+						return 0;
+					}
+
+
+
+				}
+
+
+
+				break;
+			case TypeReal:
+
+				if(newentry)
+				{
+					 float keycmp;
+					 memcpy(&keycmp,pagedata+currentOffset+sizeof(int),sizeof(float));
+					 float highkeycmp;
+					 memcpy(&highkeycmp,highkey,sizeof(float));
+					 if(highkeycmp>=keycmp)
+					 {
+						 if(!highKeyInclusive)
+						 {
+							 return IX_EOF;
+						 }
+						 else
+						 {
+							 if(highkeycmp>keycmp)
+								 return IX_EOF;
+						 }
+					 }
+
+					if(!lowKeyInclusive)
+					{
+					 float lowkeycmp;
+					 memcpy(&lowkeycmp,lowkey,sizeof(float));
+					// float keycmp;
+					// memcpy(&keycmp,pagedata+currentOffset+sizeof(int),sizeof(float));
+					 if(lowkeycmp==keycmp)
+					 {
+						 currentOffset=currentOffset+sizeof(int)*2+noofrids*sizeof(rid);
+					 }
+					 currentrid=1;
+					 newentry=true;
+					  return getNextEntry(rid,key);
+					}
+
+
+					memcpy(&noofrids,pagedata+currentOffset,sizeof(int));
+					currentrid=1;
+					memcpy(&rid,pagedata+currentOffset+(currentrid-1)*sizeof(rid)+sizeof(int)+sizeof(float),sizeof(rid));
+					key=new unsigned char[sizeof(float)];
+					memcpy(key,pagedata+currentOffset+sizeof(int),sizeof(float));
+					newentry=false;
+					currentrid++;
+					return 0;
+
+				}
+				else
+				{
+					if(currentrid<=noofrids)
+					{
+						key=new unsigned char[sizeof(float)];
+						memcpy(&rid,pagedata+currentOffset+(currentrid-1)*sizeof(rid)+sizeof(int)+sizeof(float),sizeof(rid));
+						memcpy(key,pagedata+currentOffset+sizeof(int),sizeof(float));
+						if(currentrid==noofrids)
+						{
+							newentry=true;
+							currentOffset=currentOffset+sizeof(int)*2+sizeof(rid)*noofrids;
+
+						}
+
+						else
+							currentrid++;
+						return 0;
+					}
+
+
+
+				}
+
+
+				break;
+			case TypeVarChar:
+				int keysize;
+				memcpy(&keysize,pagedata+currentOffset+sizeof(int),sizeof(int));
+				if(newentry)
+				{
+
+
+					 char* keycmp=new char[keysize+1];
+					 memset(keycmp,'\0',keysize+1);
+					 memcpy(keycmp,pagedata+currentOffset+sizeof(int)*2,keysize);
+					 string skeycmp(keycmp);
+					 delete[] keycmp;
+
+					 int highkeysize;
+					 memcpy(&highkeysize,highkey,sizeof(int));
+					 char* highkeycmp=new char[highkeysize+1];
+					 memset(highkeycmp,'\0',highkeysize+1);
+					 memcpy(highkeycmp,highkey+sizeof(int),highkeysize);
+					 string shighkeycmp(highkeycmp);
+					 delete[] highkeycmp;
+
+					 if(shighkeycmp.compare(skeycmp)>=0)
+					 {
+						 if(!highKeyInclusive)
+						 {
+							 return IX_EOF;
+						 }
+						 else
+						 {
+							 if(shighkeycmp.compare(skeycmp)==0)
+								 return IX_EOF;
+						 }
+					 }
+
+					if(!lowKeyInclusive)
+					{
+					 int lowkeysize;
+					 memcpy(&lowkeysize,lowkey,sizeof(int));
+					 char* lowkeycmp=new char[lowkeysize+1];
+					 memset(lowkeycmp,'\0',lowkeysize+1);
+					 memcpy(lowkeycmp,lowkey+sizeof(int),lowkeysize);
+					 string slowkeycmp(lowkeycmp);
+					// float keycmp;
+					// memcpy(&keycmp,pagedata+currentOffset+sizeof(int),sizeof(float));
+					 if(slowkeycmp.compare(skeycmp)==0)
+					 {
+						 currentOffset=currentOffset+sizeof(int)*2+keysize+noofrids*sizeof(rid);
+					 }
+					 currentrid=1;
+					 newentry=true;
+					  return getNextEntry(rid,key);
+					}
+
+
+					memcpy(&noofrids,pagedata+currentOffset,sizeof(int));
+					currentrid=1;
+					memcpy(&rid,pagedata+currentOffset+(currentrid-1)*sizeof(rid)+sizeof(int)+keysize+sizeof(int),sizeof(rid));
+					key=new unsigned char[keysize+sizeof(int)];
+					memcpy(key,pagedata+currentOffset+sizeof(int),keysize+sizeof(int));
+					newentry=false;
+					currentrid++;
+					return 0;
+
+				}
+				else
+				{
+					if(currentrid<=noofrids)
+					{
+						key=new unsigned char[keysize+sizeof(int)];
+						memcpy(&rid,pagedata+currentOffset+(currentrid-1)*sizeof(rid)+sizeof(int)+sizeof(int)+keysize,sizeof(rid));
+						memcpy(key,pagedata+currentOffset+sizeof(int),keysize+sizeof(int));
+						if(currentrid==noofrids)
+						{
+							newentry=true;
+							currentOffset=currentOffset+sizeof(int)*2+keysize+sizeof(rid)*noofrids;
+
+						}
+
+						else
+							currentrid++;
+						return 0;
+					}
+
+
+
+				}
+
+				break;
+		}
+	}
+
+
+
+
+
+
+    return 0;
 }
 
 RC IX_ScanIterator::close()
