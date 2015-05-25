@@ -472,11 +472,20 @@ void IndexManager::printBtree(IXFileHandle &ixfileHandle, const Attribute &attri
 	unsigned char pagedt[PAGE_SIZE];
 	ixfileHandle.fileHandle.readPage(::crrPageNo,pagedt);
 	flag=getNonLeafFlag(pagedt);
-
+	int noofEntries;
 	if(flag==NON_LEAF)
 	{
 		int noofEntries;
 		getnoofEntriesNonLeaf(pagedt,noofEntries);
+		if(noofEntries==0){
+			::crrPageNo=1;
+			ixfileHandle.fileHandle.readPage(::crrPageNo,pagedt);
+			flag=getNonLeafFlag(pagedt);
+		}
+	}
+	if(flag==NON_LEAF)
+	{
+
 		cout<<"{ \"keys\":[";
 		int offset=0;
 		for(int i=0;i<noofEntries;i++)
@@ -575,7 +584,7 @@ void IndexManager::printBtree(IXFileHandle &ixfileHandle, const Attribute &attri
 		int offset=0;
 		getnoofEntries(pagedt,noofEntries);
 		for(int i=0;i<noofEntries;i++){
-			cout<<"[\"";
+			cout<<"[";
 			int noofrids,offset2=0;
 			memcpy(&noofrids,pagedt+offset,sizeof(int));
 			switch(attribute.type)
@@ -583,7 +592,7 @@ void IndexManager::printBtree(IXFileHandle &ixfileHandle, const Attribute &attri
 			case TypeInt:
 				int k;
 				memcpy(&k,pagedt+offset+sizeof(int),sizeof(int));
-				cout<<"\""<<k<<":[";
+				cout<<"\""<<k<<"\":[";
 				offset2=sizeof(int)*2;
 				break;
 			case TypeReal:
@@ -609,6 +618,7 @@ void IndexManager::printBtree(IXFileHandle &ixfileHandle, const Attribute &attri
 				cout<<"(";
 				RID temprid;
 				memcpy(&temprid,pagedt+offset+offset2,sizeof(RID));
+				cout<<temprid.pageNum<<","<<temprid.slotNum;
 				cout<<")";
 				if(j!=(noofrids-1))
 				{
