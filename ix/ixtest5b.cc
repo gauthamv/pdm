@@ -74,6 +74,8 @@
 //    // iterate
 //    while(ix_ScanIterator.getNextEntry(rid, &key) == success)
 //    {
+//    	if(rid.pageNum==126)
+//    		cout<<"hjk"<<endl;
 //        if(rid.pageNum % 500 == 0)
 //            cerr << "returned rid: " << rid.pageNum << " " << rid.slotNum << endl;
 //        outRidPageNumSum += rid.pageNum;
