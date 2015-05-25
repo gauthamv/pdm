@@ -70,6 +70,7 @@ class IndexManager {
         RC getnoofEntriesNonLeaf(unsigned char *Page,int &entries);
         RC setnoofEntriesNonLeaf(unsigned char *Page,int entries);
         RC findPath(unsigned char *rootPage,int &childPageNo,const void *key,const Attribute &attribute);
+        RC removeEntry(unsigned char *Page,const Attribute &attribute, const void *key, const RID &rid);
        // RC getFlag(unsigned char *page,bool &flag);
     protected:
         IndexManager();

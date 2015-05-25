@@ -97,7 +97,12 @@ RC IndexManager::insertEntry(IXFileHandle &ixfileHandle, const Attribute &attrib
 				{
 					if(!insertLeafEntry(leafPage,attribute,key,rid))
 					{
-						return 0;
+						if(ixfileHandle.fileHandle.writePage(1,leafPage))
+						{
+							delete[] leafPage;
+							delete[] rootPage;
+							return 0;
+						}
 					}
 				}
 				else	//no space in leaf page, therefore leaf page needs to be split and a root entry needs to be added
@@ -112,19 +117,21 @@ RC IndexManager::insertEntry(IXFileHandle &ixfileHandle, const Attribute &attrib
 						unsigned char *firstEntry = new unsigned char[length];
 						memcpy(firstEntry,newPage+sizeof(int),length+sizeof(int));
 						fillRootPage(rootPage,1,2,firstEntry,length+sizeof(int),attribute);
+						delete[] firstEntry;
 					}
 					else
 					{
-						ixfileHandle.fileHandle.appendPage(newPage); //appending the new page
 						unsigned char *firstEntry = new unsigned char[sizeof(int)];
 						memcpy(firstEntry,newPage+sizeof(int),sizeof(int));
 						fillRootPage(rootPage,1,2,firstEntry,sizeof(int),attribute);
+						delete[] firstEntry;
 					}
 					ixfileHandle.fileHandle.writePage(1,leafPage);  //writing the old page back
 					ixfileHandle.fileHandle.appendPage(newPage); //appending the new page
 					ixfileHandle.fileHandle.writePage(0,rootPage);  //writing the old root page back
 					if(!insertEntry(ixfileHandle,attribute,key,rid))
 					{
+						delete[] newPage;
 						return 0;
 					}
 				}
@@ -151,33 +158,74 @@ RC IndexManager::insertEntry(IXFileHandle &ixfileHandle, const Attribute &attrib
 				//Checking is space is der in the root node
 				if(PAGE_SIZE-(3*sizeof(int))-freeSpace < keyLength)
 				{
-					//means free space is not there in the nonLeaf(potential unstable node)
-					unsigned char *newPage = new unsigned char[PAGE_SIZE];
-					unsigned char *newRootPage = new unsigned char[PAGE_SIZE];
-					formNonLeafHeader(newPage);	//formatting the new page
-					formNonLeafHeader(newRootPage);	//formatting the new page
-					splitNonLeafPage(rootPage,newPage,attribute);
-					ixfileHandle.fileHandle.appendPage(newPage); //appending the new page
-					ixfileHandle.fileHandle.appendPage(rootPage); //appending the new page2
-					int noOfPages = ixfileHandle.fileHandle.getNumberOfPages();
-					int length=0;	//used for getting the length of 1st node in the new page
-					if(attribute.type == TypeVarChar)
+					if(parentPage == 0)
 					{
-						memcpy(&length,newPage+sizeof(int),sizeof(int)); //copying the length of key field
-						unsigned char *firstEntry = new unsigned char[length];
-						memcpy(firstEntry,newPage+sizeof(int),length+sizeof(int));
-						fillRootPage(newRootPage,noOfPages-1,noOfPages,firstEntry,length+sizeof(int),attribute);
+						//means free space is not there in the nonLeaf(potential unstable node)
+						unsigned char *newPage = new unsigned char[PAGE_SIZE];
+						unsigned char *newRootPage = new unsigned char[PAGE_SIZE];
+						formNonLeafHeader(newPage);	//formatting the new page
+						formNonLeafHeader(newRootPage);	//formatting the new page
+						splitNonLeafPage(rootPage,newPage,attribute);
+						ixfileHandle.fileHandle.appendPage(newPage); //appending the new page
+						ixfileHandle.fileHandle.appendPage(rootPage); //appending the new page2
+						int noOfPages = ixfileHandle.fileHandle.getNumberOfPages();
+						int length=0;	//used for getting the length of 1st node in the new page
+						if(attribute.type == TypeVarChar)
+						{
+							memcpy(&length,newPage+sizeof(int),sizeof(int)); //copying the length of key field
+							unsigned char *firstEntry = new unsigned char[length];
+							memcpy(firstEntry,newPage+sizeof(int),length+sizeof(int));
+							fillRootPage(newRootPage,noOfPages-1,noOfPages,firstEntry,length+sizeof(int),attribute);
+							delete[] firstEntry;
+						}
+						else
+						{
+							unsigned char *firstEntry = new unsigned char[sizeof(int)];
+							memcpy(firstEntry,newPage+sizeof(int),sizeof(int));
+							fillRootPage(newRootPage,noOfPages-1,noOfPages,firstEntry,sizeof(int),attribute);
+							delete[] firstEntry;
+						}
+						ixfileHandle.fileHandle.writePage(parentPage,newRootPage);  //writing the old page back
+						if(ixfileHandle.fileHandle.readPage(childPageNo,rootPage) == -1)
+						{
+							return -1;
+						}
+						delete[] newPage;
+						delete[] newRootPage;
 					}
 					else
 					{
-						unsigned char *firstEntry = new unsigned char[sizeof(int)];
-						memcpy(firstEntry,newPage+sizeof(int),sizeof(int));
-						fillRootPage(newRootPage,noOfPages-1,noOfPages,firstEntry,sizeof(int),attribute);
-					}
-					ixfileHandle.fileHandle.writePage(parentPage,newRootPage);  //writing the old page back
-					if(ixfileHandle.fileHandle.readPage(childPageNo,rootPage) == -1)
-					{
-						return -1;
+						//opening parent page
+						unsigned char *parentPageTemp = new unsigned char[PAGE_SIZE];
+						if(ixfileHandle.fileHandle.readPage(parentPage,parentPageTemp) == -1)
+						{
+							return -1;
+						}
+						unsigned char *newPage = new unsigned char[PAGE_SIZE];
+						formNonLeafHeader(newPage);	//formatting the new page
+						splitNonLeafPage(rootPage,newPage,attribute);
+						ixfileHandle.fileHandle.appendPage(newPage); //appending the new page
+						int noOfPages = ixfileHandle.fileHandle.getNumberOfPages();
+						int length=0;	//used for getting the length
+						if(attribute.type == TypeVarChar)
+						{
+							memcpy(&length,newPage+sizeof(int),sizeof(int)); //copying the length of key field
+							unsigned char *firstEntry = new unsigned char[length];
+							memcpy(firstEntry,newPage+sizeof(int),length+sizeof(int));
+							fillRootPage(parentPageTemp,childPageNo,noOfPages,firstEntry,length+sizeof(int),attribute);
+							delete[] firstEntry;
+						}
+						else
+						{
+							unsigned char *firstEntry = new unsigned char[sizeof(int)];
+							memcpy(firstEntry,newPage+sizeof(int),sizeof(int));
+							fillRootPage(parentPageTemp,childPageNo,noOfPages,firstEntry,sizeof(int),attribute);
+							delete[] firstEntry;
+						}
+						ixfileHandle.fileHandle.writePage(parentPage,parentPageTemp);
+						ixfileHandle.fileHandle.writePage(childPageNo,rootPage);
+						delete[] parentPageTemp;
+						delete[] newPage;
 					}
 				}
 				else
@@ -197,7 +245,11 @@ RC IndexManager::insertEntry(IXFileHandle &ixfileHandle, const Attribute &attrib
 			{
 				if(!insertLeafEntry(rootPage,attribute,key,rid))
 				{
-					return 0;
+					if(ixfileHandle.fileHandle.writePage(childPageNo,rootPage))
+					{
+						delete[] rootPage;
+						return 0;
+					}
 				}
 			}
 			else	//no space in leaf page, therefore leaf page needs to be split and a root entry needs to be added
@@ -219,17 +271,21 @@ RC IndexManager::insertEntry(IXFileHandle &ixfileHandle, const Attribute &attrib
 					unsigned char *firstEntry = new unsigned char[length];
 					memcpy(firstEntry,newLeafPage+sizeof(int),length+sizeof(int));
 					fillRootPage(parentPageTemp,childPageNo,tempnoOfPage,firstEntry,length+sizeof(int),attribute);
+					delete[] firstEntry;
 				}
 				else
 				{
 					unsigned char *firstEntry = new unsigned char[sizeof(int)];
 					memcpy(firstEntry,newLeafPage+sizeof(int),sizeof(int));
 					fillRootPage(parentPageTemp,childPageNo,tempnoOfPage,firstEntry,sizeof(int),attribute);
+					delete[] firstEntry;
 				}
 				ixfileHandle.fileHandle.writePage(parentPage,parentPageTemp);  //writing the old page back
 				ixfileHandle.fileHandle.writePage(childPageNo,rootPage);  //writing the old page back
 				if(!insertEntry(ixfileHandle,attribute,key,rid))
 				{
+					delete[] newLeafPage;
+					delete[] parentPageTemp;
 					return 0;
 				}
 			}
@@ -240,9 +296,155 @@ RC IndexManager::insertEntry(IXFileHandle &ixfileHandle, const Attribute &attrib
 
 RC IndexManager::deleteEntry(IXFileHandle &ixfileHandle, const Attribute &attribute, const void *key, const RID &rid)
 {
+	//opening the root page
+	unsigned char *rootPage = new unsigned char[PAGE_SIZE];
+	if(!ixfileHandle.fileHandle.readPage(ROOT_PAGE,rootPage))	//Read root page
+	{
+		int freeSpace;
+		readFreeSpacePtr(rootPage,freeSpace);
+		if(freeSpace == sizeof(int))
+		{
+			//root is empty, only leaf pages present
+			unsigned char *leafPage = new unsigned char[PAGE_SIZE];
+			if(!ixfileHandle.fileHandle.readPage(1,leafPage))	//1st leaf page
+			{
+				removeEntry(leafPage,attribute,key,rid);
+				delete[] rootPage;
+				return 0;
+			}
+		}
+		else
+		{
+			int childPageNo; //gets the child page no
+			while(true && (getNonLeafFlag(rootPage) == 20000)) //check if page is nonLeaf
+			{
+				findPath(rootPage,childPageNo,key,attribute);
+				if(ixfileHandle.fileHandle.readPage(childPageNo,rootPage) == -1)
+				{
+					return -1;
+				}
+			}
+			if(removeEntry(rootPage,attribute,key,rid) == -1)
+			{
+				delete[] rootPage;
+				return -1;
+			}
+			else
+			{
+				delete[] rootPage;
+				return 0;
+			}
+		}
+	}
+	delete[] rootPage;
     return -1;
 }
 
+RC IndexManager::removeEntry(unsigned char *Page,const Attribute &attribute, const void *key, const RID &rid)
+{
+	int offset=0;
+	int freeSpace;
+	readFreeSpacePtr(Page,freeSpace);
+	int recEntries;
+	int found = 0;	//checks whether entry is found or not
+
+	while(offset != freeSpace)
+	{
+		memcpy(&recEntries,Page+offset,sizeof(int));
+		offset+=sizeof(int);
+		if(attribute.type == TypeVarChar)
+		{
+			int length;
+			int length2;
+			memcpy(&length,Page+offset,sizeof(int));
+			memcpy(&length2,(char*)key,sizeof(int));
+			char *pageEntry = new char[length+1];
+			char *keyEntry = new char[length2+1];
+			memset(pageEntry,'\0',length+1);
+			memset(keyEntry,'\0',length2+1);
+			memcpy(pageEntry,Page+offset+sizeof(int),length);
+			memcpy(keyEntry,(char*)key+sizeof(int),length2);
+			string pageString(pageEntry);
+			string keyString(keyEntry);
+			if(keyString.compare(pageString) == 0)
+			{
+				if(recEntries == 1)
+				{
+					int diff = offset+sizeof(int)+length+sizeof(RID);
+					memcpy(Page+offset-sizeof(int),Page+diff,freeSpace-diff);
+					found =1;
+					break;
+				}
+				else
+				{
+					offset+=sizeof(int)+length;
+					for(int i=1;i<=recEntries;i++)
+					{
+						RID tempRID;
+						memcpy(&tempRID,Page+offset,sizeof(RID));
+						if((tempRID.pageNum == rid.pageNum) && (tempRID.slotNum == rid.slotNum))
+						{
+							memcpy(Page+offset,Page+offset+sizeof(RID),freeSpace-offset-sizeof(RID));
+							found = 1;
+							break;
+						}
+						else
+						{
+							offset+=sizeof(RID);
+						}
+					}
+					break;
+				}
+			}
+			offset+=sizeof(int)+length+(recEntries*sizeof(RID));
+		}
+		else
+		{
+			int keyValue,pageValue;
+			memcpy(&keyValue,(char*)key,sizeof(int));
+			memcpy(&pageValue,Page+offset,sizeof(int));
+			if(keyValue == pageValue)
+			{
+				if(recEntries == 1)
+				{
+					int diff = offset+sizeof(int)+sizeof(RID);
+					memcpy(Page+offset-sizeof(int),Page+diff,freeSpace-diff);
+					found = 1;
+					break;
+				}
+				else
+				{
+					offset+=sizeof(int);
+					for(int i=1;i<=recEntries;i++)
+					{
+						RID tempRID;
+						memcpy(&tempRID,Page+offset,sizeof(RID));
+						if((tempRID.pageNum == rid.pageNum) && (tempRID.slotNum == rid.slotNum))
+						{
+							memcpy(Page+offset,Page+offset+sizeof(RID),freeSpace-offset-sizeof(RID));
+							found = 1;
+							break;
+						}
+						else
+						{
+							offset+=sizeof(RID);
+						}
+					}
+					break;
+				}
+			}
+			offset+=sizeof(int)+(recEntries*sizeof(RID));
+		}
+	}
+	if(found == 1)
+	{
+		return 0;
+	}
+	else
+	{
+		return -1;
+	}
+}
 
 
 void IndexManager::printBtree(IXFileHandle &ixfileHandle, const Attribute &attribute) const {
@@ -269,10 +471,10 @@ RC IndexManager::formLeafHeader(unsigned char *Page)
 	int noOfEntries = 0;
 	int leaf = -1;
 	memcpy(Page+PAGE_SIZE-sizeof(int),&freePtr,sizeof(int));	//Copying the free space ptr location of that page
-	memcpy(Page+PAGE_SIZE-(2*sizeof(int)),&rightPtr,sizeof(int));
-	memcpy(Page+PAGE_SIZE-(3*sizeof(int)),&leftPtr,sizeof(int));
-	memcpy(Page+PAGE_SIZE-(4*sizeof(int)),&noOfEntries,sizeof(int));	//storing the number of entries slot
-	memcpy(Page+PAGE_SIZE-(5*sizeof(int)),&leaf,sizeof(int));	//flag to identify leaf
+	memcpy(Page+PAGE_SIZE-(2*sizeof(int)),&noOfEntries,sizeof(int));	//storing the number of entries slot
+	memcpy(Page+PAGE_SIZE-(3*sizeof(int)),&leaf,sizeof(int));	//flag to identify leaf
+	memcpy(Page+PAGE_SIZE-(4*sizeof(int)),&rightPtr,sizeof(int));
+	memcpy(Page+PAGE_SIZE-(5*sizeof(int)),&leftPtr,sizeof(int));
 	return 0;
 }
 
@@ -351,6 +553,9 @@ RC IndexManager::insertLeafEntry(unsigned char *leafPage,const Attribute &attrib
 				memcpy(leafPage+offset,tempData,tempSize);
 				offset+=tempSize;
 				setFreeSpacePtr(leafPage,offset);	//Setting the new freeSpaceptr
+				delete[] tempData;
+				delete[] newC;
+				delete[] oldC;
 				break;
 			}
 			else if(newString.compare(oldString) < 0)
@@ -364,6 +569,9 @@ RC IndexManager::insertLeafEntry(unsigned char *leafPage,const Attribute &attrib
 				setnoofEntries(leafPage,noOfEntries+1);
 				offset+=tempSize;
 				setFreeSpacePtr(leafPage,offset);	//Setting the new freeSpaceptr
+				delete[] tempData;
+				delete[] newC;
+				delete[] oldC;
 				break;
 			}
 			else
@@ -403,6 +611,7 @@ RC IndexManager::insertLeafEntry(unsigned char *leafPage,const Attribute &attrib
 				memcpy(leafPage+offset,tempData,tempSize);
 				offset+=tempSize;
 				setFreeSpacePtr(leafPage,offset);	//Setting the new freeSpaceptr
+				delete[] tempData;
 				break;
 			}
 			else if(newValue < oldValue)
@@ -416,6 +625,7 @@ RC IndexManager::insertLeafEntry(unsigned char *leafPage,const Attribute &attrib
 				setnoofEntries(leafPage,noOfEntries+1);
 				offset+=tempSize;
 				setFreeSpacePtr(leafPage,offset);	//Setting the new freeSpaceptr
+				delete[] tempData;
 				break;
 			}
 			else
@@ -433,18 +643,19 @@ RC IndexManager::insertLeafEntry(unsigned char *leafPage,const Attribute &attrib
 			setFreeSpacePtr(leafPage,offset);	//Setting the new freeSpaceptr
 		}
 	}
+
 	return 0;
 }
 
 RC IndexManager::getnoofEntries(unsigned char *Page,int &entries)
 {
-	memcpy(&entries,Page+PAGE_SIZE-(4*sizeof(int)),sizeof(int));
+	memcpy(&entries,Page+PAGE_SIZE-(2*sizeof(int)),sizeof(int));
 	return 0;
 }
 
 RC IndexManager::setnoofEntries(unsigned char *Page,int entries)
 {
-	memcpy(Page+PAGE_SIZE-(4*sizeof(int)),&entries,sizeof(int));
+	memcpy(Page+PAGE_SIZE-(2*sizeof(int)),&entries,sizeof(int));
 	return 0;
 }
 
@@ -568,8 +779,8 @@ RC IndexManager::entryLengthNonLeaf(unsigned char *nonLeafPage,int offset,int &l
 RC IndexManager::setDLLpointers(IXFileHandle &ixfileHandle,unsigned char *newPage,unsigned char *oldPage,int oldPageNo)
 {
 	int noOfPages = ixfileHandle.fileHandle.getNumberOfPages() + 1;
-	memcpy(newPage+PAGE_SIZE-(3*sizeof(int)),&oldPageNo,sizeof(int));
-	memcpy(oldPage+PAGE_SIZE-(2*sizeof(int)),&noOfPages,sizeof(int));
+	memcpy(newPage+PAGE_SIZE-(5*sizeof(int)),&oldPageNo,sizeof(int));
+	memcpy(oldPage+PAGE_SIZE-(4*sizeof(int)),&noOfPages,sizeof(int));
 	return 0;
 }
 
