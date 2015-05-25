@@ -166,17 +166,17 @@ RC IndexManager::insertEntry(IXFileHandle &ixfileHandle, const Attribute &attrib
 						unsigned char *newRootPage = new unsigned char[PAGE_SIZE];
 						formNonLeafHeader(newPage);	//formatting the new page
 						formNonLeafHeader(newRootPage);	//formatting the new page
+						int noOfPages = ixfileHandle.fileHandle.getNumberOfPages();
 						splitNonLeafPage(rootPage,newPage,attribute);
 						ixfileHandle.fileHandle.appendPage(newPage); //appending the new page
 						ixfileHandle.fileHandle.appendPage(rootPage); //appending the new page2
-						int noOfPages = ixfileHandle.fileHandle.getNumberOfPages();
 						int length=0;	//used for getting the length of 1st node in the new page
 						if(attribute.type == TypeVarChar)
 						{
 							memcpy(&length,newPage+sizeof(int),sizeof(int)); //copying the length of key field
 							unsigned char *firstEntry = new unsigned char[length];
 							memcpy(firstEntry,newPage+sizeof(int),length+sizeof(int));
-							fillRootPage(newRootPage,noOfPages-1,noOfPages,firstEntry,length+sizeof(int),attribute);
+							fillRootPage(newRootPage,noOfPages,noOfPages+1,firstEntry,length+sizeof(int),attribute);
 							delete[] firstEntry;
 						}
 						else
@@ -187,10 +187,10 @@ RC IndexManager::insertEntry(IXFileHandle &ixfileHandle, const Attribute &attrib
 							delete[] firstEntry;
 						}
 						ixfileHandle.fileHandle.writePage(parentPage,newRootPage);  //writing the old page back
-						if(ixfileHandle.fileHandle.readPage(childPageNo,rootPage) == -1)
-						{
-							return -1;
-						}
+						//if(ixfileHandle.fileHandle.readPage(childPageNo,rootPage) == -1)
+						//{
+							//return -1;
+						//}
 						delete[] newPage;
 						delete[] newRootPage;
 					}
@@ -264,7 +264,7 @@ RC IndexManager::insertEntry(IXFileHandle &ixfileHandle, const Attribute &attrib
 				formLeafHeader(newLeafPage);	//formatting the new page
 				splitLeafPage(rootPage,newLeafPage,ixfileHandle,childPageNo,attribute);
 				int tempnoOfPage = ixfileHandle.fileHandle.getNumberOfPages();
-				ixfileHandle.fileHandle.appendPage(newLeafPage); //appending the new page
+				//ixfileHandle.fileHandle.appendPage(newLeafPage); //appending the new page
 				int length=0;	//used for getting the length of 1st node in the new page
 				if(attribute.type == TypeVarChar)
 				{
@@ -283,6 +283,8 @@ RC IndexManager::insertEntry(IXFileHandle &ixfileHandle, const Attribute &attrib
 				}
 				ixfileHandle.fileHandle.writePage(parentPage,parentPageTemp);  //writing the old page back
 				ixfileHandle.fileHandle.writePage(childPageNo,rootPage);  //writing the old page back
+				ixfileHandle.fileHandle.appendPage(newLeafPage); //appending the new page
+				ixfileHandle.fileHandle.writePage(tempnoOfPage,newLeafPage);  //PLZ CHECK WHY!!!
 				if(!insertEntry(ixfileHandle,attribute,key,rid))
 				{
 					delete[] newLeafPage;
