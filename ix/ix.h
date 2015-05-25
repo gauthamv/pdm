@@ -61,7 +61,7 @@ class IndexManager {
         RC getrecEntries(unsigned char *Page,int &entries,int offset);
         RC setrecEntries(unsigned char *Page,int value,int offset);
         RC setnoofEntries(unsigned char *Page,int entries);
-        RC getNonLeafFlag(unsigned char *Page) const;
+        RC getNonLeafFlag(unsigned char *Page);
         RC copyEntryToPage(unsigned char *leafPage,int offset,int recEntries,const Attribute &attribute, const void *key, const RID &rid);
         RC splitLeafPage(unsigned char *leafPage,unsigned char *newPage,IXFileHandle &ixfileHandle, int pageNo,const Attribute &attribute);
         RC splitNonLeafPage(unsigned char *nonLeafPage,unsigned char *newPage,const Attribute &attribute);
