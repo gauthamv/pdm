@@ -97,7 +97,7 @@ RC IndexManager::insertEntry(IXFileHandle &ixfileHandle, const Attribute &attrib
 				{
 					if(!insertLeafEntry(leafPage,attribute,key,rid))
 					{
-						if(ixfileHandle.fileHandle.writePage(1,leafPage))
+						if(!ixfileHandle.fileHandle.writePage(1,leafPage))
 						{
 							delete[] leafPage;
 							delete[] rootPage;
@@ -245,7 +245,7 @@ RC IndexManager::insertEntry(IXFileHandle &ixfileHandle, const Attribute &attrib
 			{
 				if(!insertLeafEntry(rootPage,attribute,key,rid))
 				{
-					if(ixfileHandle.fileHandle.writePage(childPageNo,rootPage))
+					if(!ixfileHandle.fileHandle.writePage(childPageNo,rootPage))
 					{
 						delete[] rootPage;
 						return 0;
