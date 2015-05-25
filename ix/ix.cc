@@ -1501,6 +1501,7 @@ RC IX_ScanIterator::getNextEntry(RID &rid, void *key)
 							 currentOffset=currentOffset+sizeof(int)*2+noofrids*sizeof(RID);
 							 currentrid=1;
 							 newentry=true;
+							 currentEntry=currentEntry+1;
 							 return getNextEntry(rid,key);
 							}
 
@@ -1512,6 +1513,7 @@ RC IX_ScanIterator::getNextEntry(RID &rid, void *key)
 					 if(lowkeycmp==keycmp)
 					 {
 						 currentOffset=currentOffset+sizeof(int)*2+noofrids*sizeof(RID);
+						 currentEntry=currentEntry+1;
 					 }
 					 currentrid=1;
 					 newentry=true;
@@ -1602,6 +1604,7 @@ RC IX_ScanIterator::getNextEntry(RID &rid, void *key)
 						 currentOffset=currentOffset+sizeof(int)*2+noofrids*sizeof(rid);
 						 currentrid=1;
 						 newentry=true;
+						 currentEntry=currentEntry+1;
 						 return getNextEntry(rid,key);
 					 }
 					// float keycmp;
@@ -1609,6 +1612,7 @@ RC IX_ScanIterator::getNextEntry(RID &rid, void *key)
 					 if(lowkeycmp==keycmp)
 					 {
 						 currentOffset=currentOffset+sizeof(int)*2+noofrids*sizeof(rid);
+						 currentEntry=currentEntry+1;
 					 }
 					 currentrid=1;
 					 newentry=true;
@@ -1713,6 +1717,7 @@ RC IX_ScanIterator::getNextEntry(RID &rid, void *key)
 							 currentOffset=currentOffset+sizeof(int)*2+keysize+noofrids*sizeof(rid);
 							 currentrid=1;
 							 newentry=true;
+							 currentEntry=currentEntry+1;
 							 return getNextEntry(rid,key);
 						 }
 					if(!lowKeyInclusive)
@@ -1723,6 +1728,7 @@ RC IX_ScanIterator::getNextEntry(RID &rid, void *key)
 					 if(slowkeycmp.compare(skeycmp)==0)
 					 {
 						 currentOffset=currentOffset+sizeof(int)*2+keysize+noofrids*sizeof(rid);
+						 currentEntry=currentEntry+1;
 					 }
 					 currentrid=1;
 					 newentry=true;

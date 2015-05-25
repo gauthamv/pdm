@@ -75,6 +75,8 @@
 //            return fail;
 //        }
 //        outRidPageNumSum += rid.pageNum;
+//        if(outRidPageNumSum==(505050-5100))
+//        	cout<<"asdasda";
 //    }
 //
 //    if (inRidPageNumSum != outRidPageNumSum)
