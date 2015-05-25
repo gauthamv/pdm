@@ -1205,6 +1205,10 @@ RC IndexManager::scan(IXFileHandle &ixfileHandle,
 RC IX_ScanIterator::loadscandata(FileHandle &fileH,Attribute attr,const void* lowk,const void* highk,bool lowkeyincl,bool highkeyincl)
 {
 	fileHandle= &fileH;
+	if(!fileHandle->file.is_open())
+		return -1;
+	if((attr.type!=TypeInt)&&(attr.type!=TypeReal)&&(attr.type!=TypeVarChar))
+		return -1;
 	attribute=attr;
 	if(lowk!=NULL){
 	short attrslk=AttributeSize(attribute,lowk);
@@ -1483,6 +1487,14 @@ RC IX_ScanIterator::getNextEntry(RID &rid, void *key)
 					key=new unsigned char[sizeof(int)];
 					memcpy(key,pagedata+currentOffset+sizeof(int),sizeof(int));
 					newentry=false;
+
+					if(currentrid==noofrids)
+					{
+						newentry=true;
+						currentOffset=currentOffset+sizeof(int)*2+sizeof(rid)*noofrids;
+						currentEntry++;
+
+					}
 					currentrid++;
 					return 0;
 
@@ -1563,6 +1575,13 @@ RC IX_ScanIterator::getNextEntry(RID &rid, void *key)
 					key=new unsigned char[sizeof(float)];
 					memcpy(key,pagedata+currentOffset+sizeof(int),sizeof(float));
 					newentry=false;
+
+					if(currentrid==noofrids)
+					{
+						newentry=true;
+						currentOffset=currentOffset+sizeof(int)*2+sizeof(rid)*noofrids;
+						currentEntry++;
+					}
 					currentrid++;
 					return 0;
 
@@ -1578,6 +1597,7 @@ RC IX_ScanIterator::getNextEntry(RID &rid, void *key)
 						{
 							newentry=true;
 							currentOffset=currentOffset+sizeof(int)*2+sizeof(rid)*noofrids;
+							currentEntry++;
 
 						}
 
@@ -1661,6 +1681,13 @@ RC IX_ScanIterator::getNextEntry(RID &rid, void *key)
 					key=new unsigned char[keysize+sizeof(int)];
 					memcpy(key,pagedata+currentOffset+sizeof(int),keysize+sizeof(int));
 					newentry=false;
+
+					if(currentrid==noofrids)
+					{
+						newentry=true;
+						currentOffset=currentOffset+sizeof(int)*2+sizeof(rid)*noofrids;
+						currentEntry++;
+					}
 					currentrid++;
 					return 0;
 
@@ -1676,6 +1703,7 @@ RC IX_ScanIterator::getNextEntry(RID &rid, void *key)
 						{
 							newentry=true;
 							currentOffset=currentOffset+sizeof(int)*2+keysize+sizeof(rid)*noofrids;
+							currentEntry++;
 
 						}
 
