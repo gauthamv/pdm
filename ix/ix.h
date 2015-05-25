@@ -16,7 +16,9 @@ class IXFileHandle;
 
 class IndexManager {
 
+
     public:
+	//int currentPageNo;
         static IndexManager* instance();
 
         // Create an index file
@@ -55,11 +57,11 @@ class IndexManager {
         RC setFreeSpacePtr(unsigned char *Page,int offset);
         RC checkSpaceLeafPage(unsigned char *leafPage,const Attribute &attribute, const void *key, const RID &rid);
         RC insertLeafEntry(unsigned char *leafPage,const Attribute &attribute, const void *key, const RID &rid);
-        RC getnoofEntries(unsigned char *Page,int &entries);
+        RC getnoofEntries(unsigned char *Page,int &entries) const;
         RC getrecEntries(unsigned char *Page,int &entries,int offset);
         RC setrecEntries(unsigned char *Page,int value,int offset);
         RC setnoofEntries(unsigned char *Page,int entries);
-        RC getNonLeafFlag(unsigned char *Page);
+        RC getNonLeafFlag(unsigned char *Page) const;
         RC copyEntryToPage(unsigned char *leafPage,int offset,int recEntries,const Attribute &attribute, const void *key, const RID &rid);
         RC splitLeafPage(unsigned char *leafPage,unsigned char *newPage,IXFileHandle &ixfileHandle, int pageNo,const Attribute &attribute);
         RC splitNonLeafPage(unsigned char *nonLeafPage,unsigned char *newPage,const Attribute &attribute);
@@ -67,7 +69,7 @@ class IndexManager {
         RC entryLengthNonLeaf(unsigned char *nonLeafPage,int offset,int &length,const Attribute &attribute);
         RC setDLLpointers(IXFileHandle &ixfileHandle,unsigned char *newPage,unsigned char *oldPage,int oldPageNo);
         RC fillRootPage(unsigned char *rootPage,int leftPageNo,int rightPageNo,unsigned char *firstEntry,int length,const Attribute &attribute);
-        RC getnoofEntriesNonLeaf(unsigned char *Page,int &entries);
+        RC getnoofEntriesNonLeaf(unsigned char *Page,int &entries) const;
         RC setnoofEntriesNonLeaf(unsigned char *Page,int entries);
         RC findPath(unsigned char *rootPage,int &childPageNo,const void *key,const Attribute &attribute);
         RC removeEntry(unsigned char *Page,const Attribute &attribute, const void *key, const RID &rid);
