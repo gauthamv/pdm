@@ -121,6 +121,7 @@
 //    // Close Index
 //    assertCloseIndexFile(success, indexManager, ixfileHandle);
 //
+//    assertDestroyIndexFile(success, indexManager, indexFileName);
 //    return success;
 //}
 //

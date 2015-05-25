@@ -308,9 +308,17 @@ RC IndexManager::deleteEntry(IXFileHandle &ixfileHandle, const Attribute &attrib
 			unsigned char *leafPage = new unsigned char[PAGE_SIZE];
 			if(!ixfileHandle.fileHandle.readPage(1,leafPage))	//1st leaf page
 			{
-				removeEntry(leafPage,attribute,key,rid);
 				delete[] rootPage;
-				return 0;
+				if(removeEntry(leafPage,attribute,key,rid) == -1)
+				{
+					delete[] leafPage;
+					return -1;
+				}
+				if(!ixfileHandle.fileHandle.writePage(1,leafPage))
+				{
+					delete[] leafPage;
+					return 0;
+				}
 			}
 		}
 		else
@@ -331,6 +339,11 @@ RC IndexManager::deleteEntry(IXFileHandle &ixfileHandle, const Attribute &attrib
 			}
 			else
 			{
+				if(!ixfileHandle.fileHandle.writePage(childPageNo,rootPage))
+				{
+					delete[] rootPage;
+					return 0;
+				}
 				delete[] rootPage;
 				return 0;
 			}
@@ -373,6 +386,7 @@ RC IndexManager::removeEntry(unsigned char *Page,const Attribute &attribute, con
 					int diff = offset+sizeof(int)+length+sizeof(RID);
 					memcpy(Page+offset-sizeof(int),Page+diff,freeSpace-diff);
 					found =1;
+					setFreeSpacePtr(Page,freeSpace-diff);
 					break;
 				}
 				else
@@ -385,6 +399,7 @@ RC IndexManager::removeEntry(unsigned char *Page,const Attribute &attribute, con
 						if((tempRID.pageNum == rid.pageNum) && (tempRID.slotNum == rid.slotNum))
 						{
 							memcpy(Page+offset,Page+offset+sizeof(RID),freeSpace-offset-sizeof(RID));
+							setFreeSpacePtr(Page,freeSpace-sizeof(RID));
 							found = 1;
 							break;
 						}
@@ -410,6 +425,7 @@ RC IndexManager::removeEntry(unsigned char *Page,const Attribute &attribute, con
 					int diff = offset+sizeof(int)+sizeof(RID);
 					memcpy(Page+offset-sizeof(int),Page+diff,freeSpace-diff);
 					found = 1;
+					setFreeSpacePtr(Page,freeSpace-diff);
 					break;
 				}
 				else
@@ -423,6 +439,7 @@ RC IndexManager::removeEntry(unsigned char *Page,const Attribute &attribute, con
 						{
 							memcpy(Page+offset,Page+offset+sizeof(RID),freeSpace-offset-sizeof(RID));
 							found = 1;
+							setFreeSpacePtr(Page,freeSpace-sizeof(RID));
 							break;
 						}
 						else
@@ -854,6 +871,8 @@ RC IndexManager::copyEntryToPage(unsigned char *leafPage,int offset,int recEntri
 	memcpy(leafPage+offset,(char*)key,length); //copying the key
 	offset+=length;
 	memcpy(leafPage+offset,&rid,sizeof(RID));	//copying the rid
+	offset+=sizeof(RID);
+	setFreeSpacePtr(leafPage,offset);
 	return 0;
 }
 
