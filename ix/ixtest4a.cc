@@ -51,9 +51,9 @@ int testCase_4A(const string &indexFileName, const Attribute &attribute)
 
     while(ix_ScanIterator.getNextEntry(rid, &key) == success)
     {
-        if (rid.pageNum % 200 == 0) {
+        //if (rid.pageNum % 200 == 0) {
             cerr << "returned rid: " << rid.pageNum << " " << rid.slotNum << endl;
-        }
+        //}
         outRidPageNumSum += rid.pageNum;
     }
 

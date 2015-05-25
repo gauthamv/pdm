@@ -107,6 +107,7 @@ RC IndexManager::insertEntry(IXFileHandle &ixfileHandle, const Attribute &attrib
 				}
 				else	//no space in leaf page, therefore leaf page needs to be split and a root entry needs to be added
 				{
+					cout<<"No of Pages: "<<ixfileHandle.fileHandle.getNumberOfPages()<<endl;
 					unsigned char *newPage = new unsigned char[PAGE_SIZE];
 					formLeafHeader(newPage);	//formatting the new page
 					splitLeafPage(leafPage,newPage,ixfileHandle,1,attribute);
@@ -262,8 +263,8 @@ RC IndexManager::insertEntry(IXFileHandle &ixfileHandle, const Attribute &attrib
 				}
 				formLeafHeader(newLeafPage);	//formatting the new page
 				splitLeafPage(rootPage,newLeafPage,ixfileHandle,childPageNo,attribute);
-				ixfileHandle.fileHandle.appendPage(newLeafPage); //appending the new page
 				int tempnoOfPage = ixfileHandle.fileHandle.getNumberOfPages();
+				ixfileHandle.fileHandle.appendPage(newLeafPage); //appending the new page
 				int length=0;	//used for getting the length of 1st node in the new page
 				if(attribute.type == TypeVarChar)
 				{
@@ -969,7 +970,7 @@ RC IndexManager::entryLengthNonLeaf(unsigned char *nonLeafPage,int offset,int &l
 
 RC IndexManager::setDLLpointers(IXFileHandle &ixfileHandle,unsigned char *newPage,unsigned char *oldPage,int oldPageNo)
 {
-	int noOfPages = ixfileHandle.fileHandle.getNumberOfPages() + 1;
+	int noOfPages = ixfileHandle.fileHandle.getNumberOfPages();
 	memcpy(newPage+PAGE_SIZE-(5*sizeof(int)),&oldPageNo,sizeof(int));
 	memcpy(oldPage+PAGE_SIZE-(4*sizeof(int)),&noOfPages,sizeof(int));
 	return 0;
@@ -987,6 +988,8 @@ RC IndexManager::fillRootPage(unsigned char *rootPage,int leftPageNo,int rightPa
 		memcpy(rootPage+sizeof(int),firstEntry,length);
 		memcpy(rootPage+sizeof(int)+length,&rightPageNo,sizeof(int));
 		setnoofEntriesNonLeaf(rootPage,noOfEntries+1);
+		offset+=length+sizeof(int);
+		setFreeSpacePtr(rootPage,offset);	//Setting the new freeSpaceptr
 	}
 	else
 	{
