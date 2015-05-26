@@ -48,7 +48,6 @@ int testCase_extra_1(const string &indexFileName, const Attribute &attribute)
     // insert entry
     for(unsigned i = 1; i <= numOfTuples; i++)
     {
-    	cout<<i<<endl;
         count = ((i-1) % 26) + 1;
         *(int *)key = count;
         for(unsigned j = 0; j < count; j++)
@@ -56,13 +55,13 @@ int testCase_extra_1(const string &indexFileName, const Attribute &attribute)
             *(key+4+j) = 96+count;
         }
 
-        if(i == 2103)
+        rid.pageNum = i;
+        rid.slotNum = i;
+
+        if(i == 2102)
         {
         	cout<<"blah"<<endl;
         }
-
-        rid.pageNum = i;
-        rid.slotNum = i;
 
         assertInsertEntry(success, indexManager, ixfileHandle, attribute, key, rid);
 
