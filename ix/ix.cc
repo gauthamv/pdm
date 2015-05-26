@@ -1387,6 +1387,7 @@ RC IX_ScanIterator::getNextEntry(RID &rid, void *key)
 
 					currentPageNo=lowpointer;
 					currentOffset=0;
+					currentEntry=1;
 					fileHandle->readPage(currentPageNo,pagedata);
 					int f=IndexManager::instance()->getNonLeafFlag(pagedata);
 					if(f==NON_LEAF)
@@ -1427,6 +1428,7 @@ RC IX_ScanIterator::getNextEntry(RID &rid, void *key)
 				{
 					currentPageNo=lowpointer;
 					currentOffset=0;
+					currentEntry=1;
 					fileHandle->readPage(currentPageNo,pagedata);
 					int f=IndexManager::instance()->getNonLeafFlag(pagedata);
 					if(f==NON_LEAF)
@@ -1465,6 +1467,8 @@ RC IX_ScanIterator::getNextEntry(RID &rid, void *key)
 				memset(keyvarchar,'\0',keysize+1);
 				memcpy(keyvarchar,pagedata+currentOffset+sizeof(int)*2,keysize);
 				string vark(keyvarchar);
+				//cout<<varlowk<<endl;
+				//cout<<vark<<endl;
 				compare=varlowk.compare(vark);
 				}
 				else{
@@ -1475,6 +1479,7 @@ RC IX_ScanIterator::getNextEntry(RID &rid, void *key)
 
 					currentPageNo=lowpointer;
 					currentOffset=0;
+					currentEntry=1;
 					fileHandle->readPage(currentPageNo,pagedata);
 					int f=IndexManager::instance()->getNonLeafFlag(pagedata);
 					if(f==NON_LEAF)
@@ -1735,6 +1740,7 @@ RC IX_ScanIterator::getNextEntry(RID &rid, void *key)
 					 memset(keycmp,'\0',keysize+1);
 					 memcpy(keycmp,pagedata+currentOffset+sizeof(int)*2,keysize);
 					 string skeycmp(keycmp);
+					 //cout<<"blaah"<<skeycmp<<endl;
 					 delete[] keycmp;
 
 					 int highkeysize;
@@ -1746,6 +1752,7 @@ RC IX_ScanIterator::getNextEntry(RID &rid, void *key)
 					 memset(highkeycmp,'\0',highkeysize+1);
 					 memcpy(highkeycmp,highkey+sizeof(int),highkeysize);
 					 string shighkeycmp(highkeycmp);
+
 					compare=shighkeycmp.compare(skeycmp);
 					 delete[] highkeycmp;
 					 }
@@ -1759,11 +1766,13 @@ RC IX_ScanIterator::getNextEntry(RID &rid, void *key)
 						 {
 							 return IX_EOF;
 						 }
-						 else
+						 if(compare<0)
+							 return IX_EOF;
+					/*	 else
 						 {
 							 if(compare==0)
 								 return IX_EOF;
-						 }
+						 }*/
 					 }
 					 if(lowkey!=NULL){
 						 int lowkeysize;
@@ -1772,6 +1781,7 @@ RC IX_ScanIterator::getNextEntry(RID &rid, void *key)
 						 memset(lowkeycmp,'\0',lowkeysize+1);
 						 memcpy(lowkeycmp,lowkey+sizeof(int),lowkeysize);
 						 string slowkeycmp(lowkeycmp);
+
 						 if(slowkeycmp.compare(skeycmp)>0)
 						 {
 							 currentOffset=currentOffset+sizeof(int)*2+keysize+noofrids*sizeof(rid);
@@ -1794,9 +1804,11 @@ RC IX_ScanIterator::getNextEntry(RID &rid, void *key)
 					 newentry=true;
 					  return getNextEntry(rid,key);
 					}
+			//		cout<<slowkeycmp<<endl;
 					 }
 
 
+					 cout<<skeycmp<<endl;
 					memcpy(&noofrids,pagedata+currentOffset,sizeof(int));
 					currentrid=1;
 					memcpy(&rid,pagedata+currentOffset+(currentrid-1)*sizeof(rid)+sizeof(int)+keysize+sizeof(int),sizeof(rid));

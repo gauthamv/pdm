@@ -56,8 +56,9 @@ int testCase_extra_1(const string &indexFileName, const Attribute &attribute)
             *(key+4+j) = 96+count;
         }
 
-        if(i == 2103)
+        if(i == 2100)
         {
+      //  	break;
         	cout<<"blah"<<endl;
         }
 
@@ -100,6 +101,7 @@ int testCase_extra_1(const string &indexFileName, const Attribute &attribute)
             return fail;
         }
         count1++;
+
     }
     cerr << endl;
 
