@@ -55,11 +55,16 @@ int testCase_extra_1(const string &indexFileName, const Attribute &attribute)
             *(key+4+j) = 96+count;
         }
 
+<<<<<<< HEAD
         rid.pageNum = i;
         rid.slotNum = i;
 
         if(i == 2102)
+=======
+        if(i == 2100)
+>>>>>>> f1328bf8e88a321dc5a908219ed19696c9db8b48
         {
+      //  	break;
         	cout<<"blah"<<endl;
         }
 
@@ -99,6 +104,7 @@ int testCase_extra_1(const string &indexFileName, const Attribute &attribute)
             return fail;
         }
         count1++;
+
     }
     cerr << endl;
 
