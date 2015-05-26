@@ -111,7 +111,7 @@ RC IndexManager::insertEntry(IXFileHandle &ixfileHandle, const Attribute &attrib
 				}
 				else	//no space in leaf page, therefore leaf page needs to be split and a root entry needs to be added
 				{
-					cout<<"No of Pages: "<<ixfileHandle.fileHandle.getNumberOfPages()<<endl;
+					//cout<<"No of Pages: "<<ixfileHandle.fileHandle.getNumberOfPages()<<endl;
 					unsigned char *newPage = new unsigned char[PAGE_SIZE];
 					formLeafHeader(newPage);	//formatting the new page
 					splitLeafPage(leafPage,newPage,ixfileHandle,1,attribute);
@@ -119,7 +119,7 @@ RC IndexManager::insertEntry(IXFileHandle &ixfileHandle, const Attribute &attrib
 					if(attribute.type == TypeVarChar)
 					{
 						memcpy(&length,newPage+sizeof(int),sizeof(int)); //copying the length of key field
-						unsigned char *firstEntry = new unsigned char[length];
+						unsigned char *firstEntry = new unsigned char[length+sizeof(int)];
 						memcpy(firstEntry,newPage+sizeof(int),length+sizeof(int));
 						fillRootPage(rootPage,1,2,firstEntry,length+sizeof(int),attribute);
 						delete[] firstEntry;
@@ -181,7 +181,7 @@ RC IndexManager::insertEntry(IXFileHandle &ixfileHandle, const Attribute &attrib
 						if(attribute.type == TypeVarChar)
 						{
 							memcpy(&length,newPage+sizeof(int),sizeof(int)); //copying the length of key field
-							unsigned char *firstEntry = new unsigned char[length];
+							unsigned char *firstEntry = new unsigned char[length+sizeof(int)];
 							memcpy(firstEntry,newPage+sizeof(int),length+sizeof(int));
 							fillRootPage(newRootPage,noOfPages,noOfPages+1,firstEntry,length+sizeof(int),attribute);
 							delete[] firstEntry;
@@ -218,7 +218,7 @@ RC IndexManager::insertEntry(IXFileHandle &ixfileHandle, const Attribute &attrib
 						if(attribute.type == TypeVarChar)
 						{
 							memcpy(&length,newPage+sizeof(int),sizeof(int)); //copying the length of key field
-							unsigned char *firstEntry = new unsigned char[length];
+							unsigned char *firstEntry = new unsigned char[length+sizeof(int)];
 							memcpy(firstEntry,newPage+sizeof(int),length+sizeof(int));
 							fillRootPage(parentPageTemp,childPageNo,noOfPages,firstEntry,length+sizeof(int),attribute);
 							delete[] firstEntry;
@@ -276,7 +276,7 @@ RC IndexManager::insertEntry(IXFileHandle &ixfileHandle, const Attribute &attrib
 				if(attribute.type == TypeVarChar)
 				{
 					memcpy(&length,newLeafPage+sizeof(int),sizeof(int)); //copying the length of key field
-					unsigned char *firstEntry = new unsigned char[length];
+					unsigned char *firstEntry = new unsigned char[length+sizeof(int)];
 					memcpy(firstEntry,newLeafPage+sizeof(int),length+sizeof(int));
 					fillRootPage(parentPageTemp,childPageNo,tempnoOfPage,firstEntry,length+sizeof(int),attribute);
 					delete[] firstEntry;
@@ -1515,7 +1515,7 @@ RC IX_ScanIterator::getNextEntry(RID &rid, void *key)
 			if(right==-1)
 				return IX_EOF;
 			currentPageNo=right;
-			cout<<"currentPage"<<currentPageNo<<endl;
+			//cout<<"currentPage"<<currentPageNo<<endl;
 			fileHandle->readPage(currentPageNo,pagedata);
 			IndexManager::instance()->getnoofEntries(pagedata,noOfEntries);
 			currentrid=1;
@@ -1535,7 +1535,7 @@ RC IX_ScanIterator::getNextEntry(RID &rid, void *key)
 					 memcpy(&keycmp,pagedata+currentOffset+sizeof(int),sizeof(int));
 					 if(keycmp==300)
 					 {
-						 cout<<"300";
+						 //cout<<"300";
 					 }
 					 int highkeycmp;
 					 if(highkey!=NULL){
@@ -1808,7 +1808,7 @@ RC IX_ScanIterator::getNextEntry(RID &rid, void *key)
 					 }
 
 
-					 cout<<skeycmp<<endl;
+					 //cout<<skeycmp<<endl;
 					memcpy(&noofrids,pagedata+currentOffset,sizeof(int));
 					currentrid=1;
 					memcpy(&rid,pagedata+currentOffset+(currentrid-1)*sizeof(rid)+sizeof(int)+keysize+sizeof(int),sizeof(rid));
