@@ -494,7 +494,7 @@ void IndexManager::printBtree(IXFileHandle &ixfileHandle, const Attribute &attri
 	int noofEntries;
 	if(flag==NON_LEAF)
 	{
-		int noofEntries;
+
 		getnoofEntriesNonLeaf(pagedt,noofEntries);
 		if(noofEntries==0){
 			::crrPageNo=1;
@@ -519,13 +519,13 @@ void IndexManager::printBtree(IXFileHandle &ixfileHandle, const Attribute &attri
 
 				memcpy(&k,pagedt+offset+sizeof(int),sizeof(int));
 				cout<<"\""<<k<<"\"";
-				offset=offset+sizeof(int)*3;
+				offset=offset+sizeof(int)*2;
 				break;
 			case TypeReal:
 
 				memcpy(&fk,pagedt+offset+sizeof(int),sizeof(float));
 				cout<<"\""<<fk<<"\"";
-				offset=offset+sizeof(int)*2+sizeof(float);
+				offset=offset+sizeof(int)+sizeof(float);
 				break;
 
 			case TypeVarChar:
@@ -534,8 +534,8 @@ void IndexManager::printBtree(IXFileHandle &ixfileHandle, const Attribute &attri
 				vkey=new char[vkeysize+1];
 				memset(vkey,'\0',vkeysize+1);
 				memcpy(vkey,pagedt+sizeof(int)*2,vkeysize);
-				offset=offset+sizeof(int)*2+sizeof(int)+vkeysize;
-				cout<<"\""<<vkey<<"\"";
+				offset=offset+sizeof(int)*2+vkeysize;
+				cout<<"\""<<vkey<<"\""<<endl;
 
 				break;
 
@@ -546,8 +546,8 @@ void IndexManager::printBtree(IXFileHandle &ixfileHandle, const Attribute &attri
 			}
 		}
 		cout<<"],"<<endl;
-		cout<<"\"children\":[{";
-		offset=sizeof(int);
+		cout<<"\"children\":[";
+		offset=0;
 		for(int i=0;i<noofEntries;i++)
 		{
 			int k,temp,keysize;
@@ -561,7 +561,7 @@ void IndexManager::printBtree(IXFileHandle &ixfileHandle, const Attribute &attri
 				::crrPageNo=k;
 				printBtree(ixfileHandle,attribute);
 				::crrPageNo=temp;
-				offset=offset+sizeof(int)*3;
+				offset=offset+sizeof(int)*2;
 				break;
 			case TypeReal:
 
@@ -570,7 +570,7 @@ void IndexManager::printBtree(IXFileHandle &ixfileHandle, const Attribute &attri
 				::crrPageNo=k;
 				printBtree(ixfileHandle,attribute);
 				::crrPageNo=temp;
-				offset=offset+sizeof(int)+sizeof(float)+sizeof(int);
+				offset=offset+sizeof(int)+sizeof(float);
 				break;
 
 			case TypeVarChar:
@@ -582,7 +582,7 @@ void IndexManager::printBtree(IXFileHandle &ixfileHandle, const Attribute &attri
 				::crrPageNo=k;
 				printBtree(ixfileHandle,attribute);
 				::crrPageNo=temp;
-				offset=offset+sizeof(int)*2+sizeof(int)+keysize;
+				offset=offset+sizeof(int)+sizeof(int)+keysize;
 
 
 				break;
@@ -598,11 +598,13 @@ void IndexManager::printBtree(IXFileHandle &ixfileHandle, const Attribute &attri
 	}
 	else
 	{
-		cout<<"\"keys\":";
+
 		int noofEntries;
 		int offset=0;
 		getnoofEntries(pagedt,noofEntries);
+
 		for(int i=0;i<noofEntries;i++){
+			cout<<"{\"keys\":";
 			cout<<"[";
 			int noofrids,offset2=0;
 			memcpy(&noofrids,pagedt+offset,sizeof(int));
@@ -660,7 +662,7 @@ void IndexManager::printBtree(IXFileHandle &ixfileHandle, const Attribute &attri
 				offset=offset+keysize+sizeof(int)*2+noofrids*sizeof(RID);
 				break;
 			}
-			cout<<"\"]";
+			cout<<"\"]}"<<endl;
 		}
 		cout<<"}";
 
@@ -1355,6 +1357,7 @@ RC IX_ScanIterator::getNextEntry(RID &rid, void *key)
 
 				if((lowk<k)|| nullCheck)
 				{
+
 					currentPageNo=lowpointer;
 					currentOffset=0;
 					fileHandle->readPage(currentPageNo,pagedata);
@@ -1442,6 +1445,7 @@ RC IX_ScanIterator::getNextEntry(RID &rid, void *key)
 				}
 				if((compare<0)||nullCheck)
 				{
+
 					currentPageNo=lowpointer;
 					currentOffset=0;
 					fileHandle->readPage(currentPageNo,pagedata);
@@ -1554,7 +1558,7 @@ RC IX_ScanIterator::getNextEntry(RID &rid, void *key)
 
 					currentrid=1;
 					memcpy(&rid,pagedata+currentOffset+(currentrid-1)*sizeof(rid)+sizeof(int)*2,sizeof(rid));
-					key=new unsigned char[sizeof(int)];
+				//	key=new unsigned char[sizeof(int)];
 					memcpy(key,pagedata+currentOffset+sizeof(int),sizeof(int));
 					newentry=false;
 
@@ -1573,7 +1577,7 @@ RC IX_ScanIterator::getNextEntry(RID &rid, void *key)
 				{
 					if(currentrid<=noofrids)
 					{
-						key=new unsigned char[sizeof(int)];
+					//key=new unsigned char[sizeof(int)];
 						memcpy(&rid,pagedata+currentOffset+(currentrid-1)*sizeof(rid)+sizeof(int)*2,sizeof(rid));
 						memcpy(key,pagedata+currentOffset+sizeof(int),sizeof(int));
 						if(currentrid==noofrids)
@@ -1653,7 +1657,7 @@ RC IX_ScanIterator::getNextEntry(RID &rid, void *key)
 				//	memcpy(&noofrids,pagedata+currentOffset,sizeof(int));
 					currentrid=1;
 					memcpy(&rid,pagedata+currentOffset+(currentrid-1)*sizeof(rid)+sizeof(int)+sizeof(float),sizeof(rid));
-					key=new unsigned char[sizeof(float)];
+					//key=new unsigned char[sizeof(float)];
 					memcpy(key,pagedata+currentOffset+sizeof(int),sizeof(float));
 					newentry=false;
 
@@ -1671,7 +1675,7 @@ RC IX_ScanIterator::getNextEntry(RID &rid, void *key)
 				{
 					if(currentrid<=noofrids)
 					{
-						key=new unsigned char[sizeof(float)];
+						//key=new unsigned char[sizeof(float)];
 						memcpy(&rid,pagedata+currentOffset+(currentrid-1)*sizeof(rid)+sizeof(int)+sizeof(float),sizeof(rid));
 						memcpy(key,pagedata+currentOffset+sizeof(int),sizeof(float));
 						if(currentrid==noofrids)
@@ -1769,7 +1773,7 @@ RC IX_ScanIterator::getNextEntry(RID &rid, void *key)
 					memcpy(&noofrids,pagedata+currentOffset,sizeof(int));
 					currentrid=1;
 					memcpy(&rid,pagedata+currentOffset+(currentrid-1)*sizeof(rid)+sizeof(int)+keysize+sizeof(int),sizeof(rid));
-					key=new unsigned char[keysize+sizeof(int)];
+					//key=new unsigned char[keysize+sizeof(int)];
 					memcpy(key,pagedata+currentOffset+sizeof(int),keysize+sizeof(int));
 					newentry=false;
 
@@ -1787,7 +1791,7 @@ RC IX_ScanIterator::getNextEntry(RID &rid, void *key)
 				{
 					if(currentrid<=noofrids)
 					{
-						key=new unsigned char[keysize+sizeof(int)];
+						//key=new unsigned char[keysize+sizeof(int)];
 						memcpy(&rid,pagedata+currentOffset+(currentrid-1)*sizeof(rid)+sizeof(int)+sizeof(int)+keysize,sizeof(rid));
 						memcpy(key,pagedata+currentOffset+sizeof(int),keysize+sizeof(int));
 						if(currentrid==noofrids)
