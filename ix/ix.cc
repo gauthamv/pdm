@@ -159,7 +159,8 @@ RC IndexManager::insertEntry(IXFileHandle &ixfileHandle, const Attribute &attrib
 				//Checking is space is der in the root node
 				if(PAGE_SIZE-(3*sizeof(int))-freeSpace < keyLength)
 				{
-					if(parentPage == 0)
+					//if(parentPage == 0)
+					if(childPageNo == 0)
 					{
 						//means free space is not there in the nonLeaf(potential unstable node)
 						unsigned char *newPage = new unsigned char[PAGE_SIZE];
@@ -205,8 +206,8 @@ RC IndexManager::insertEntry(IXFileHandle &ixfileHandle, const Attribute &attrib
 						unsigned char *newPage = new unsigned char[PAGE_SIZE];
 						formNonLeafHeader(newPage);	//formatting the new page
 						splitNonLeafPage(rootPage,newPage,attribute);
-						ixfileHandle.fileHandle.appendPage(newPage); //appending the new page
 						int noOfPages = ixfileHandle.fileHandle.getNumberOfPages();
+						ixfileHandle.fileHandle.appendPage(newPage); //appending the new page
 						int length=0;	//used for getting the length
 						if(attribute.type == TypeVarChar)
 						{
@@ -260,6 +261,10 @@ RC IndexManager::insertEntry(IXFileHandle &ixfileHandle, const Attribute &attrib
 				if(ixfileHandle.fileHandle.readPage(parentPage,parentPageTemp) == -1)
 				{
 					return -1;
+				}
+				if(parentPage == 770)
+				{
+					cout<<"blah"<<endl;
 				}
 				formLeafHeader(newLeafPage);	//formatting the new page
 				splitLeafPage(rootPage,newLeafPage,ixfileHandle,childPageNo,attribute);
@@ -387,9 +392,15 @@ RC IndexManager::removeEntry(unsigned char *Page,const Attribute &attribute, con
 				if(recEntries == 1)
 				{
 					int diff = offset+sizeof(int)+length+sizeof(RID);
-					memcpy(Page+offset-sizeof(int),Page+diff,freeSpace-diff);
+					unsigned char *temp = new unsigned char[freeSpace-diff];
+					memcpy(temp,Page+diff,freeSpace-diff);
+					memcpy(Page+offset-sizeof(int),temp,freeSpace-diff);
 					found =1;
 					setFreeSpacePtr(Page,freeSpace-diff);
+					int entries;
+					getnoofEntries(Page,entries);
+					setnoofEntries(Page,entries-1);	//reducing the entries by 1
+					setrecEntries(Page,recEntries,offset-sizeof(int));
 					break;
 				}
 				else
@@ -401,7 +412,9 @@ RC IndexManager::removeEntry(unsigned char *Page,const Attribute &attribute, con
 						memcpy(&tempRID,Page+offset,sizeof(RID));
 						if((tempRID.pageNum == rid.pageNum) && (tempRID.slotNum == rid.slotNum))
 						{
-							memcpy(Page+offset,Page+offset+sizeof(RID),freeSpace-offset-sizeof(RID));
+							unsigned char *temp = new unsigned char[freeSpace-offset-sizeof(RID)];
+							memcpy(temp,Page+offset+sizeof(RID),freeSpace-offset-sizeof(RID));
+							memcpy(Page+offset,temp,freeSpace-offset-sizeof(RID));
 							setFreeSpacePtr(Page,freeSpace-sizeof(RID));
 							setrecEntries(Page,recEntries-1,offset-length-sizeof(int));
 							found = 1;
@@ -427,9 +440,15 @@ RC IndexManager::removeEntry(unsigned char *Page,const Attribute &attribute, con
 				if(recEntries == 1)
 				{
 					int diff = offset+sizeof(int)+sizeof(RID);
-					memcpy(Page+offset-sizeof(int),Page+diff,freeSpace-diff);
+					unsigned char *temp = new unsigned char[freeSpace-diff];
+					memcpy(temp,Page+diff,freeSpace-diff);
+					memcpy(Page+offset-sizeof(int),temp,freeSpace-diff);
 					found = 1;
 					setFreeSpacePtr(Page,freeSpace-diff);
+					int entries;
+					getnoofEntries(Page,entries);
+					setnoofEntries(Page,entries-1);	//reducing the entries by 1
+					setrecEntries(Page,recEntries-1,offset-sizeof(int));
 					break;
 				}
 				else
@@ -441,10 +460,12 @@ RC IndexManager::removeEntry(unsigned char *Page,const Attribute &attribute, con
 						memcpy(&tempRID,Page+offset,sizeof(RID));
 						if((tempRID.pageNum == rid.pageNum) && (tempRID.slotNum == rid.slotNum))
 						{
-							memcpy(Page+offset,Page+offset+sizeof(RID),freeSpace-offset-sizeof(RID));
+							unsigned char *temp = new unsigned char[freeSpace-offset-sizeof(RID)];
+							memcpy(temp,Page+offset+sizeof(RID),freeSpace-offset-sizeof(RID));
+							memcpy(Page+offset,temp,freeSpace-offset-sizeof(RID));
 							found = 1;
 							setFreeSpacePtr(Page,freeSpace-sizeof(RID));
-							setrecEntries(Page,recEntries-1,offset-sizeof(int));
+							setrecEntries(Page,recEntries-1,offset-(2*sizeof(int)));
 							break;
 						}
 						else
