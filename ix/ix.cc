@@ -403,6 +403,7 @@ RC IndexManager::removeEntry(unsigned char *Page,const Attribute &attribute, con
 						{
 							memcpy(Page+offset,Page+offset+sizeof(RID),freeSpace-offset-sizeof(RID));
 							setFreeSpacePtr(Page,freeSpace-sizeof(RID));
+							setrecEntries(Page,recEntries-1,offset-length-sizeof(int));
 							found = 1;
 							break;
 						}
@@ -443,6 +444,7 @@ RC IndexManager::removeEntry(unsigned char *Page,const Attribute &attribute, con
 							memcpy(Page+offset,Page+offset+sizeof(RID),freeSpace-offset-sizeof(RID));
 							found = 1;
 							setFreeSpacePtr(Page,freeSpace-sizeof(RID));
+							setrecEntries(Page,recEntries-1,offset-sizeof(int));
 							break;
 						}
 						else
@@ -1029,7 +1031,7 @@ RC IndexManager::fillRootPage(unsigned char *rootPage,int leftPageNo,int rightPa
 				{
 					int tempLength;
 					memcpy(&tempLength,rootPage+offset,sizeof(int)); //copying the number of recEntries
-					offset+=sizeof(int)+tempLength;
+					offset+=(2*sizeof(int))+tempLength;
 				}
 			}
 			if(i == noOfEntries)
