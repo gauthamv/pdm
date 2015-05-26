@@ -606,6 +606,7 @@ void IndexManager::printBtree(IXFileHandle &ixfileHandle, const Attribute &attri
 		cout<<"]}"<<endl;
 
 	}
+
 	else
 	{
 
@@ -658,6 +659,7 @@ void IndexManager::printBtree(IXFileHandle &ixfileHandle, const Attribute &attri
 				offset2+=sizeof(RID);
 
 			}
+
 			switch(attribute.type)
 			{
 			case TypeInt:
@@ -672,9 +674,13 @@ void IndexManager::printBtree(IXFileHandle &ixfileHandle, const Attribute &attri
 				offset=offset+keysize+sizeof(int)*2+noofrids*sizeof(RID);
 				break;
 			}
-			cout<<"\"]}"<<endl;
+			cout<<"]\"]}"<<endl;
+			if(i!=(noofEntries-1))
+					{
+						cout<<",";
+					}
 		}
-		cout<<"}";
+		//cout<<"}";
 
 
 
