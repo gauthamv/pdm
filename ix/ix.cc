@@ -169,8 +169,8 @@ RC IndexManager::insertEntry(IXFileHandle &ixfileHandle, const Attribute &attrib
 						formNonLeafHeader(newRootPage);	//formatting the new page
 						int noOfPages = ixfileHandle.fileHandle.getNumberOfPages();
 						splitNonLeafPage(rootPage,newPage,attribute);
-						ixfileHandle.fileHandle.appendPage(newPage); //appending the new page
 						ixfileHandle.fileHandle.appendPage(rootPage); //appending the new page2
+						ixfileHandle.fileHandle.appendPage(newPage); //appending the new page
 						int length=0;	//used for getting the length of 1st node in the new page
 						if(attribute.type == TypeVarChar)
 						{
@@ -184,7 +184,7 @@ RC IndexManager::insertEntry(IXFileHandle &ixfileHandle, const Attribute &attrib
 						{
 							unsigned char *firstEntry = new unsigned char[sizeof(int)];
 							memcpy(firstEntry,newPage+sizeof(int),sizeof(int));
-							fillRootPage(newRootPage,noOfPages-1,noOfPages,firstEntry,sizeof(int),attribute);
+							fillRootPage(newRootPage,noOfPages,noOfPages+1,firstEntry,sizeof(int),attribute);
 							delete[] firstEntry;
 						}
 						ixfileHandle.fileHandle.writePage(parentPage,newRootPage);  //writing the old page back
@@ -261,10 +261,6 @@ RC IndexManager::insertEntry(IXFileHandle &ixfileHandle, const Attribute &attrib
 				if(ixfileHandle.fileHandle.readPage(parentPage,parentPageTemp) == -1)
 				{
 					return -1;
-				}
-				if(parentPage == 770)
-				{
-					cout<<"blah"<<endl;
 				}
 				formLeafHeader(newLeafPage);	//formatting the new page
 				splitLeafPage(rootPage,newLeafPage,ixfileHandle,childPageNo,attribute);

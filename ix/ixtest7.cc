@@ -69,10 +69,6 @@ int testCase_LargeDataSet(const string &indexFileName, const Attribute &attribut
 
         assertInsertEntry(success, indexManager, ixfileHandle, attribute, &key, rid);
         inRecordNum += 1;
-        if(i == 97283)
-        {
-        	cout<<"blah"<<endl;
-        }
 
     }
 
