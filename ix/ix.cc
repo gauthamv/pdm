@@ -46,10 +46,14 @@ RC IndexManager::createFile(const string &fileName)
 			{
 				if(sFlag == 1)
 				{
+					delete[] rootPage;
+					delete[] leafPage;
 					return 0;
 				}
 			}
 		}
+		delete[] rootPage;
+		delete[] leafPage;
 	}
 	return -1;
 }
@@ -132,7 +136,9 @@ RC IndexManager::insertEntry(IXFileHandle &ixfileHandle, const Attribute &attrib
 					ixfileHandle.fileHandle.writePage(0,rootPage);  //writing the old root page back
 					if(!insertEntry(ixfileHandle,attribute,key,rid))
 					{
+						delete[] rootPage;
 						delete[] newPage;
+						delete[] leafPage;
 						return 0;
 					}
 				}
@@ -288,6 +294,7 @@ RC IndexManager::insertEntry(IXFileHandle &ixfileHandle, const Attribute &attrib
 				ixfileHandle.fileHandle.writePage(tempnoOfPage,newLeafPage);  //PLZ CHECK WHY!!!
 				if(!insertEntry(ixfileHandle,attribute,key,rid))
 				{
+					delete[] rootPage;
 					delete[] newLeafPage;
 					delete[] parentPageTemp;
 					return 0;
@@ -383,6 +390,8 @@ RC IndexManager::removeEntry(unsigned char *Page,const Attribute &attribute, con
 			memcpy(keyEntry,(char*)key+sizeof(int),length2);
 			string pageString(pageEntry);
 			string keyString(keyEntry);
+			delete[] pageEntry;
+			delete[] keyEntry;
 			if(keyString.compare(pageString) == 0)
 			{
 				if(recEntries == 1)
@@ -392,11 +401,11 @@ RC IndexManager::removeEntry(unsigned char *Page,const Attribute &attribute, con
 					memcpy(temp,Page+diff,freeSpace-diff);
 					memcpy(Page+offset-sizeof(int),temp,freeSpace-diff);
 					found =1;
-					setFreeSpacePtr(Page,freeSpace-diff);
+					setFreeSpacePtr(Page,freeSpace-(2*sizeof(int) + length +sizeof(RID)));
 					int entries;
 					getnoofEntries(Page,entries);
 					setnoofEntries(Page,entries-1);	//reducing the entries by 1
-					setrecEntries(Page,recEntries,offset-sizeof(int));
+					//setrecEntries(Page,recEntries,offset-sizeof(int));
 					break;
 				}
 				else
@@ -440,11 +449,11 @@ RC IndexManager::removeEntry(unsigned char *Page,const Attribute &attribute, con
 					memcpy(temp,Page+diff,freeSpace-diff);
 					memcpy(Page+offset-sizeof(int),temp,freeSpace-diff);
 					found = 1;
-					setFreeSpacePtr(Page,freeSpace-diff);
+					setFreeSpacePtr(Page,freeSpace-(2*sizeof(int) + sizeof(RID)));
 					int entries;
 					getnoofEntries(Page,entries);
 					setnoofEntries(Page,entries-1);	//reducing the entries by 1
-					setrecEntries(Page,recEntries-1,offset-sizeof(int));
+					//setrecEntries(Page,recEntries-1,offset-sizeof(int));
 					break;
 				}
 				else
@@ -462,6 +471,7 @@ RC IndexManager::removeEntry(unsigned char *Page,const Attribute &attribute, con
 							found = 1;
 							setFreeSpacePtr(Page,freeSpace-sizeof(RID));
 							setrecEntries(Page,recEntries-1,offset-(2*sizeof(int)));
+							//delete[] temp; //check over here
 							break;
 						}
 						else
@@ -762,6 +772,8 @@ RC IndexManager::insertLeafEntry(unsigned char *leafPage,const Attribute &attrib
 			memcpy(newC,(char*)key+sizeof(int),newLength);
 			string newString(newC);
 			string oldString(oldC);
+			delete[] newC;
+			delete[] oldC;
 			if(newString.compare(oldString) == 0)
 			{
 				int tempEntries;
@@ -777,8 +789,6 @@ RC IndexManager::insertLeafEntry(unsigned char *leafPage,const Attribute &attrib
 				offset+=tempSize;
 				setFreeSpacePtr(leafPage,offset);	//Setting the new freeSpaceptr
 				delete[] tempData;
-				delete[] newC;
-				delete[] oldC;
 				break;
 			}
 			else if(newString.compare(oldString) < 0)
@@ -793,8 +803,6 @@ RC IndexManager::insertLeafEntry(unsigned char *leafPage,const Attribute &attrib
 				offset+=tempSize;
 				setFreeSpacePtr(leafPage,offset);	//Setting the new freeSpaceptr
 				delete[] tempData;
-				delete[] newC;
-				delete[] oldC;
 				break;
 			}
 			else
@@ -808,7 +816,7 @@ RC IndexManager::insertLeafEntry(unsigned char *leafPage,const Attribute &attrib
 		{
 			copyEntryToPage(leafPage,offset,1,attribute,key,rid);
 			setnoofEntries(leafPage,noOfEntries+1);
-			offset+=(2*sizeof(int))+oldLength+sizeof(RID);
+			offset+=(2*sizeof(int))+newLength+sizeof(RID);
 			setFreeSpacePtr(leafPage,offset);	//Setting the new freeSpaceptr
 		}
 	}
@@ -1041,16 +1049,26 @@ RC IndexManager::fillRootPage(unsigned char *rootPage,int leftPageNo,int rightPa
 				memcpy(newC,firstEntry+sizeof(int),newLength);
 				string newString(newC);
 				string oldString(oldC);
+				delete[] newC;
+				delete[] oldC;
 				if(newString.compare(oldString) < 0)
 				{
 					int tempSize =  freeSpacePtr-offset;
-					unsigned char *tempData = new unsigned char[tempSize];
-					memcpy(tempData,rootPage+offset,tempSize);
+					unsigned char *tempData;
+					if(tempSize>0)
+					{
+						tempData = new unsigned char[tempSize];
+						memcpy(tempData,rootPage+offset,tempSize);
+					}
 					memcpy(rootPage+offset,firstEntry,length);
 					offset+=length;
 					memcpy(rootPage+offset,&rightPageNo,sizeof(int));
 					offset+=sizeof(int);
-					memcpy(rootPage+offset,tempData,tempSize);
+					if(tempSize > 0)
+					{
+						memcpy(rootPage+offset,tempData,tempSize);
+						delete[] tempData;
+					}
 					setnoofEntriesNonLeaf(rootPage,noOfEntries+1);
 					offset+=tempSize;
 					setFreeSpacePtr(rootPage,offset);	//Setting the new freeSpaceptr
@@ -1094,6 +1112,7 @@ RC IndexManager::fillRootPage(unsigned char *rootPage,int leftPageNo,int rightPa
 					setnoofEntriesNonLeaf(rootPage,noOfEntries+1);
 					offset+=tempSize;
 					setFreeSpacePtr(rootPage,offset);	//Setting the new freeSpaceptr
+					delete[] tempData;
 					break;
 				}
 				else if(newValue > oldValue)
@@ -1148,6 +1167,8 @@ RC IndexManager::findPath(unsigned char *rootPage,int &childPageNo,const void *k
 			memcpy(newC,(char*)key+sizeof(int),newLength);
 			string newString(newC);
 			string oldString(oldC);
+			delete[] newC;
+			delete[] oldC;
 			if(newString.compare(oldString) < 0)
 			{
 				memcpy(&childPageNo,rootPage+offset-sizeof(int),sizeof(int)); //copying the left child's page no

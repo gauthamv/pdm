@@ -163,7 +163,7 @@ RC FileHandle::readPage(PageNum pageNum, void *data)
 	memcpy((char*)data,pagedata,PAGE_SIZE);
 
 
-	delete pagedata;
+	delete[] pagedata;
 
 	readPageCounter = readPageCounter + 1;
 	return 0;
