@@ -169,8 +169,8 @@ RC IndexManager::insertEntry(IXFileHandle &ixfileHandle, const Attribute &attrib
 						formNonLeafHeader(newRootPage);	//formatting the new page
 						int noOfPages = ixfileHandle.fileHandle.getNumberOfPages();
 						splitNonLeafPage(rootPage,newPage,attribute);
-						ixfileHandle.fileHandle.appendPage(newPage); //appending the new page
 						ixfileHandle.fileHandle.appendPage(rootPage); //appending the new page2
+						ixfileHandle.fileHandle.appendPage(newPage); //appending the new page
 						int length=0;	//used for getting the length of 1st node in the new page
 						if(attribute.type == TypeVarChar)
 						{
@@ -184,7 +184,7 @@ RC IndexManager::insertEntry(IXFileHandle &ixfileHandle, const Attribute &attrib
 						{
 							unsigned char *firstEntry = new unsigned char[sizeof(int)];
 							memcpy(firstEntry,newPage+sizeof(int),sizeof(int));
-							fillRootPage(newRootPage,noOfPages-1,noOfPages,firstEntry,sizeof(int),attribute);
+							fillRootPage(newRootPage,noOfPages,noOfPages+1,firstEntry,sizeof(int),attribute);
 							delete[] firstEntry;
 						}
 						ixfileHandle.fileHandle.writePage(parentPage,newRootPage);  //writing the old page back
@@ -1361,6 +1361,7 @@ RC IX_ScanIterator::getNextEntry(RID &rid, void *key)
 
 				if((lowk<k)|| nullCheck)
 				{
+
 					currentPageNo=lowpointer;
 					currentOffset=0;
 					fileHandle->readPage(currentPageNo,pagedata);
@@ -1448,6 +1449,7 @@ RC IX_ScanIterator::getNextEntry(RID &rid, void *key)
 				}
 				if((compare<0)||nullCheck)
 				{
+
 					currentPageNo=lowpointer;
 					currentOffset=0;
 					fileHandle->readPage(currentPageNo,pagedata);
@@ -1560,7 +1562,7 @@ RC IX_ScanIterator::getNextEntry(RID &rid, void *key)
 
 					currentrid=1;
 					memcpy(&rid,pagedata+currentOffset+(currentrid-1)*sizeof(rid)+sizeof(int)*2,sizeof(rid));
-					key=new unsigned char[sizeof(int)];
+				//	key=new unsigned char[sizeof(int)];
 					memcpy(key,pagedata+currentOffset+sizeof(int),sizeof(int));
 					newentry=false;
 
@@ -1579,7 +1581,7 @@ RC IX_ScanIterator::getNextEntry(RID &rid, void *key)
 				{
 					if(currentrid<=noofrids)
 					{
-						key=new unsigned char[sizeof(int)];
+					//key=new unsigned char[sizeof(int)];
 						memcpy(&rid,pagedata+currentOffset+(currentrid-1)*sizeof(rid)+sizeof(int)*2,sizeof(rid));
 						memcpy(key,pagedata+currentOffset+sizeof(int),sizeof(int));
 						if(currentrid==noofrids)
@@ -1659,7 +1661,7 @@ RC IX_ScanIterator::getNextEntry(RID &rid, void *key)
 				//	memcpy(&noofrids,pagedata+currentOffset,sizeof(int));
 					currentrid=1;
 					memcpy(&rid,pagedata+currentOffset+(currentrid-1)*sizeof(rid)+sizeof(int)+sizeof(float),sizeof(rid));
-					key=new unsigned char[sizeof(float)];
+					//key=new unsigned char[sizeof(float)];
 					memcpy(key,pagedata+currentOffset+sizeof(int),sizeof(float));
 					newentry=false;
 
@@ -1677,7 +1679,7 @@ RC IX_ScanIterator::getNextEntry(RID &rid, void *key)
 				{
 					if(currentrid<=noofrids)
 					{
-						key=new unsigned char[sizeof(float)];
+						//key=new unsigned char[sizeof(float)];
 						memcpy(&rid,pagedata+currentOffset+(currentrid-1)*sizeof(rid)+sizeof(int)+sizeof(float),sizeof(rid));
 						memcpy(key,pagedata+currentOffset+sizeof(int),sizeof(float));
 						if(currentrid==noofrids)
@@ -1775,7 +1777,7 @@ RC IX_ScanIterator::getNextEntry(RID &rid, void *key)
 					memcpy(&noofrids,pagedata+currentOffset,sizeof(int));
 					currentrid=1;
 					memcpy(&rid,pagedata+currentOffset+(currentrid-1)*sizeof(rid)+sizeof(int)+keysize+sizeof(int),sizeof(rid));
-					key=new unsigned char[keysize+sizeof(int)];
+					//key=new unsigned char[keysize+sizeof(int)];
 					memcpy(key,pagedata+currentOffset+sizeof(int),keysize+sizeof(int));
 					newentry=false;
 
@@ -1793,7 +1795,7 @@ RC IX_ScanIterator::getNextEntry(RID &rid, void *key)
 				{
 					if(currentrid<=noofrids)
 					{
-						key=new unsigned char[keysize+sizeof(int)];
+						//key=new unsigned char[keysize+sizeof(int)];
 						memcpy(&rid,pagedata+currentOffset+(currentrid-1)*sizeof(rid)+sizeof(int)+sizeof(int)+keysize,sizeof(rid));
 						memcpy(key,pagedata+currentOffset+sizeof(int),keysize+sizeof(int));
 						if(currentrid==noofrids)
