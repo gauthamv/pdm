@@ -649,6 +649,7 @@ short RecordBasedFileManager::getfreepageNo(FileHandle &fileHandle,short datalen
 
 	if(*freespacelast>=datalength)
 	{
+		delete[] pagedata;
 		return noofPages-1;
 	}
 
@@ -658,6 +659,7 @@ short RecordBasedFileManager::getfreepageNo(FileHandle &fileHandle,short datalen
 		{
 			if(*j>=datalength)
 			{
+				delete[] pagedata;
 				return freepage;
 			}
 			freepage++;
@@ -927,6 +929,7 @@ RC RecordBasedFileManager::readAttribute(FileHandle &fileHandle, const vector<At
 			}
 		}
 	}
+	delete[] temp;
 	return 0;
 }
 
