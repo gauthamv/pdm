@@ -41,10 +41,10 @@ RC testCase_3() {
 	// Go over the data through iterator
 	void *data = malloc(bufSize);
 	bool nullBit = false;
-	
+
 	int valueA = 0;
 	float valueC = 0.0;
-	
+
 	while (filter->getNextTuple(data) != QE_EOF) {
 		int offset = 0;
 		// Print left.A
@@ -89,7 +89,7 @@ RC testCase_3() {
 			goto clean_up;
 		}
 		valueC = *(float *)((char *)data+1+offset);
-		
+
 		// Print left.C
 		cout << "  left.C " << valueC << endl;
 		offset += sizeof(float);

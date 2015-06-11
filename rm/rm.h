@@ -34,6 +34,19 @@ public:
 };
 
 
+
+
+class RM_IndexScanIterator {
+ public:
+  RM_IndexScanIterator();  	// Constructor
+  ~RM_IndexScanIterator(); 	// Destructor
+
+  // "key" follows the same format as in IndexManager::insertEntry()
+  RC getNextEntry(RID &rid, void *key);  	// Get next matching entry
+  RC close();             			// Terminate index scan
+};
+
+
 // Relation Manager
 class RelationManager
 {
@@ -75,8 +88,16 @@ public:
 
   void* prepareTabRecord(int tID,string TableName,string fileName,vector<Attribute> &recordDescriptor);	//Function to prepare record for storing in Tables File
   void* prepareColRecord(int tID,string ColName,int colType,int colLength,int colPosition,vector<Attribute> &recordDescriptor);	//Function to prepare record from raw data
+  void* prepareIndexRecord(string TableName,string fileName,string attributeName,vector<Attribute> &recordDescriptor);
   void formTableAttributeVector(vector<Attribute> &recordDescriptor);	//Used for forming the table attribute vector
   void formColumnAttributeVector(vector<Attribute> &recordDescriptor);	//Used for forming the column attribute vector
+  void formIndexAttributeVector(vector<Attribute> &recordDescriptor);
+
+  RC createIndex(const string &tableName, const string &attributeName);
+
+  RC destroyIndex(const string &tableName, const string &attributeName);
+
+  RC indexScan(const string &tableName, const string &attributeName, const void *lowKey, const void *highKey, bool lowKeyInclusive, bool highKeyInclusive, RM_IndexScanIterator &rm_IndexScanIterator);
 
 // Extra credit work (10 points)
 public:

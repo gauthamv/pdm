@@ -24,6 +24,7 @@ RC RelationManager::createCatalog()
 {
 	const string Tab = "Tables";
 	const string Col = "Columns";
+	const string Index = "Index";
 	void *recPtr;	//ptr to hold record
 	if(!RecordBasedFileManager::instance()->createFile(Tab))
 	{
@@ -100,12 +101,21 @@ RC RelationManager::createCatalog()
 
 			tableID++;	//incrementing tableId to 3
 			RecordBasedFileManager::instance()->closeFile(fileHandle2);	//closing the file
-			return 0;
+			//return 0;
 		}
 		else
 		{
 			return -1;
 		}
+	}
+	else
+	{
+		return -1;
+	}
+	//Creating the index Catalog File
+	if(!RecordBasedFileManager::instance()->createFile(Index))
+	{
+		return 0;
 	}
     return -1;
 }
@@ -114,7 +124,8 @@ RC RelationManager::deleteCatalog()
 {
 	const string Tab = "Tables";
 	const string Col = "Columns";
-	if((!PagedFileManager::instance()->destroyFile(Tab)) && (!PagedFileManager::instance()->destroyFile(Col)))
+	const string Index = "Index";
+	if((!PagedFileManager::instance()->destroyFile(Tab)) && (!PagedFileManager::instance()->destroyFile(Col)) && (!PagedFileManager::instance()->destroyFile(Index)))
 	{
 		return 0;
 	}
@@ -499,6 +510,75 @@ RC RelationManager::scan(const string &tableName, const string &conditionAttribu
     return -1;
 }
 
+RC RelationManager::createIndex(const string &tableName, const string &attributeName)
+{
+	string indexName = tableName + "_idx"; //Creating the name for the index file
+	FileHandle fileHandle;
+	if((RecordBasedFileManager::instance()->createFile(indexName)) == -1)
+	{
+		//index already exists
+	}
+	if(!RecordBasedFileManager::instance()->openFile("Index",fileHandle))
+	{
+		//Push this entry into index catalog
+		//inserting table info
+		vector<Attribute> recordDescriptor;
+		void *recPtr = prepareIndexRecord(tableName,tableName,attributeName,recordDescriptor);
+		RID dummy_rid;	//dummy RID
+		if(!RecordBasedFileManager::instance()->insertRecord(fileHandle, recordDescriptor, recPtr, dummy_rid))
+		{
+			return 0;
+		}
+	}
+	return -1;
+}
+
+RC RelationManager::destroyIndex(const string &tableName, const string &attributeName)
+{
+	if(!tableName.compare("Index"))
+	{
+		return -1;
+	}
+	string indexName = tableName + "_idx";
+	FileHandle fileHandle;	//Creating fileHandle
+	if(RecordBasedFileManager::instance()->openFile("Index",fileHandle) != 0)
+	{
+		return -1;
+	}
+	vector<Attribute> indexDescriptor;	//just for passing to the function
+	formIndexAttributeVector(indexDescriptor);
+	int success=0; //Flag to determine if the table name is deleted
+	vector<string> indexVector;
+	indexVector.push_back("table-name");
+	RBFM_ScanIterator indexScan;
+	RID indexRID;
+	int varLength = tableName.length();
+	unsigned char* tabletemp=new unsigned char[1+sizeof(int)];
+	unsigned char *varSize = new unsigned char[varLength+sizeof(int)];
+	memcpy(varSize,&varLength,sizeof(int));
+	memcpy(varSize+sizeof(int),tableName.c_str(),varLength);
+	if(!RecordBasedFileManager::instance()->scan(fileHandle,indexDescriptor,"table-name",EQ_OP,varSize,indexVector,indexScan))
+	{
+		while(indexScan.getNextRecord(indexRID,tabletemp) != 0)
+		{
+			if(!RecordBasedFileManager::instance()->deleteRecord(fileHandle,indexDescriptor,indexRID))
+			{
+				success = 1;
+			}
+		}
+	}
+	if(!RecordBasedFileManager::instance()->destroyFile(indexName))
+	{
+		success = success & 1;
+	}
+	if(success == 1)
+	{
+		return 0;
+	}
+	return -1;
+}
+
+
 // Extra credit work
 RC RelationManager::addAttribute(const string &tableName, const Attribute &attr)
 {
@@ -509,6 +589,51 @@ RC RelationManager::addAttribute(const string &tableName, const Attribute &attr)
 RC RelationManager::dropAttribute(const string &tableName, const string &attributeName)
 {
     return -1;
+}
+
+void* RelationManager::prepareIndexRecord(string TableName,string fileName,string attributeName,vector<Attribute> &recordDescriptor)
+{
+	Attribute Temp;
+	//Writing the tablename part
+	Temp.length = 50;
+	Temp.type =	TypeVarChar;
+	Temp.name = "table-name";
+	recordDescriptor.push_back(Temp);
+
+	//Writing the filename part
+	Temp.length = 50;
+	Temp.type =	TypeVarChar;
+	Temp.name = "file-name";
+	recordDescriptor.push_back(Temp);
+
+	//Writing the filename part
+	Temp.length = 50;
+	Temp.type =	TypeVarChar;
+	Temp.name = "attribute-name";
+	recordDescriptor.push_back(Temp);
+
+	int recSize = 3*sizeof(int) + TableName.length() + fileName.length() + attributeName.length() + sizeof(char);	//the char byte is for storing null information
+	int offset = 0;	//moves the pointer within record for easy appending of data
+	int tabNameLength = TableName.length();	//Length of the table name
+	int fileNameLength = fileName.length();	//Length of file name
+	int attributeNameLength = attributeName.length(); //Length of attribute name
+	unsigned int nullField = 0;
+	unsigned char *tempRec = new unsigned char[recSize];
+	memcpy((char*)tempRec+offset,&nullField,sizeof(char));	//appending nullField to record
+	offset+=sizeof(char);
+	memcpy((char*)tempRec+offset,&tabNameLength,sizeof(int));	//appending length of tablename
+	offset+=sizeof(int);
+	memcpy((char*)tempRec+offset,TableName.c_str(),tabNameLength);	//appending name of table
+	offset+=tabNameLength;
+	memcpy((char*)tempRec+offset,&fileNameLength,sizeof(int));	//appending length of file name
+	offset+=sizeof(int);
+	memcpy((char*)tempRec+offset,fileName.c_str(),fileNameLength);	//appending the filename
+	offset+=fileNameLength;
+	memcpy((char*)tempRec+offset,&attributeNameLength,sizeof(int));	//appending the length of attributeName
+	offset+=sizeof(int);
+	memcpy((char*)tempRec+offset,attributeName.c_str(),attributeNameLength);	//appending the attributeName
+
+	return tempRec;
 }
 
 void* RelationManager::prepareTabRecord(int tID,string TableName,string fileName,vector<Attribute> &recordDescriptor)
@@ -608,6 +733,27 @@ void* RelationManager::prepareColRecord(int tID,string ColName,int colType,int c
 	memcpy((char*)tempRec+offset,&colPosition,sizeof(int));		//appending the col position
 
 	return tempRec;
+}
+
+void RelationManager::formIndexAttributeVector(vector<Attribute> &recordDescriptor)
+{
+	Attribute Temp;
+
+	//Writing the tablename part
+	Temp.length = 50;
+	Temp.type =	TypeVarChar;
+	Temp.name = "table-name";
+	recordDescriptor.push_back(Temp);
+
+	Temp.length = 50;
+	Temp.type =	TypeVarChar;
+	Temp.name = "file-name";
+	recordDescriptor.push_back(Temp);
+
+	Temp.length = 50;
+	Temp.type =	TypeVarChar;
+	Temp.name = "attribute-name";
+	recordDescriptor.push_back(Temp);
 }
 
 void RelationManager::formTableAttributeVector(vector<Attribute> &recordDescriptor)
