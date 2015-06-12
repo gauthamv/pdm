@@ -1,5 +1,6 @@
 
 #include "rm.h"
+#include "../ix/ix.h"
 #include<cstring>
 RelationManager* RelationManager::_rm = 0;
 
@@ -383,6 +384,44 @@ RC RelationManager::getAttributes(const string &tableName, vector<Attribute> &at
     return 0;
 }
 
+RC RelationManager::getAttributesIndex(const string &tableName, vector<string> &names)
+{
+	FileHandle fileHandle;
+	if(RecordBasedFileManager::instance()->openFile("Index",fileHandle) != 0)
+	{
+		return -1;
+	}
+	//Scanning the index file foe getting the table-id
+	vector<Attribute> indexDescriptor;
+	formIndexAttributeVector(indexDescriptor);
+	RBFM_ScanIterator indexScan;
+	vector<string> indexVector;
+	indexVector.push_back("attribute-name");
+	RID indexRID;
+	int indexID;
+	int varLength = tableName.length();
+	unsigned char* tabletemp=new unsigned char[1+50];//50 bytes is max size of attribute name
+	unsigned char *varSize = new unsigned char[varLength+sizeof(int)];
+	memcpy((char*)varSize+0,&varLength,sizeof(int));
+	memcpy((char*)varSize+sizeof(int),tableName.c_str(),varLength);
+
+	if(!RecordBasedFileManager::instance()->scan(fileHandle,indexDescriptor,"table-name",EQ_OP,varSize,indexVector,indexScan))
+	{
+		while(indexScan.getNextRecord(indexRID,tabletemp) != RM_EOF)
+		{
+			int tempLength;
+			memcpy(&tempLength,(char*)tabletemp+sizeof(char),sizeof(int));
+			char* tempName=new char[tempLength+1];
+			memset(tempName,'\0',tempLength+1);
+			memcpy(tempName,(char*)tabletemp+sizeof(char)+sizeof(int),tempLength);
+			string attName = string(tempName);
+			names.push_back(tempName);
+			delete[] tempName;
+		}
+	}
+	return 0;
+}
+
 RC RelationManager::insertTuple(const string &tableName, const void *data, RID &rid)
 {
 	FileHandle fileHandle;
@@ -396,6 +435,48 @@ RC RelationManager::insertTuple(const string &tableName, const void *data, RID &
 		if(!RecordBasedFileManager::instance()->insertRecord(fileHandle,recordDescriptor,data,rid))
 		{
 			return 0;
+		}
+	}
+
+	//Inserting into index
+	//Creating ixFileHandle
+	IXFileHandle ixfileHandle;
+
+	//Getting the attribute names for a particular table
+	vector<string> Names;
+	getAttributesIndex(tableName,Names);
+
+	//checking all the attribute names that match
+	for(int i=0;i<Names.size();i++)
+	{
+		for(int j=0;j<recordDescriptor.size();j++)
+		{
+			if(Names[i].compare(recordDescriptor[j].name) == 0) //attribute name matches
+			{
+				string indexName = tableName + "_" + Names[i] + "_idx";
+				if(!IndexManager::instance()->openFile(indexName,ixfileHandle))
+				{
+					void *key;
+					//allocating space
+					if((recordDescriptor[j].type == TypeInt) || (recordDescriptor[j].type == TypeReal))
+					{
+						key = new char[sizeof(int)]; //no null flags for index entries
+					}
+					else
+					{
+						key = new char[50+sizeof(int)]; //Max 50 bytes
+					}
+					//getting the key
+					//BNLJoin::getcondAttributeValue(value,data,recordDescriptor,Names[i]);
+					//writing the index entry
+					if(!IndexManager::instance()->insertEntry(ixfileHandle,recordDescriptor[j],key,rid))
+					{
+						delete[] key;
+						return 0;
+					}
+					delete[] key;
+				}
+			}
 		}
 	}
     return -1;
@@ -415,6 +496,48 @@ RC RelationManager::deleteTuple(const string &tableName, const RID &rid)
 		if(!RecordBasedFileManager::instance()->deleteRecord(fileHandle,recordDescriptor,rid))
 		{
 			return 0;
+		}
+	}
+
+	//deleting from index
+	//Creating ixFileHandle
+	IXFileHandle ixfileHandle;
+
+	//Getting the attribute names for a particular table
+	vector<string> Names;
+	getAttributesIndex(tableName,Names);
+
+	//checking all the attribute names that match
+	for(int i=0;i<Names.size();i++)
+	{
+		for(int j=0;j<recordDescriptor.size();j++)
+		{
+			if(Names[i].compare(recordDescriptor[j].name) == 0) //attribute name matches
+			{
+				string indexName = tableName + "_" + Names[i] + "_idx";
+				if(!IndexManager::instance()->openFile(indexName,ixfileHandle))
+				{
+					void *key;
+					//allocating space
+					if((recordDescriptor[j].type == TypeInt) || (recordDescriptor[j].type == TypeReal))
+					{
+						key = new char[sizeof(int)]; //no null flags for index entries
+					}
+					else
+					{
+						key = new char[50+sizeof(int)]; //Max 50 bytes
+					}
+					//getting the key
+					//BNLJoin::getcondAttributeValue(value,data,recordDescriptor,Names[i]);
+					//writing the index entry
+					if(!IndexManager::instance()->deleteEntry(ixfileHandle,recordDescriptor[j],key,rid))
+					{
+						delete[] key;
+						return 0;
+					}
+					delete[] key;
+				}
+			}
 		}
 	}
     return -1;
@@ -512,11 +635,11 @@ RC RelationManager::scan(const string &tableName, const string &conditionAttribu
 
 RC RelationManager::createIndex(const string &tableName, const string &attributeName)
 {
-	string indexName = tableName + "_idx"; //Creating the name for the index file
+	string indexName = tableName + "_" + attributeName + "_idx"; //Creating the name for the index file
 	FileHandle fileHandle;
 	if((RecordBasedFileManager::instance()->createFile(indexName)) == -1)
 	{
-		//index already exists
+		return -1;
 	}
 	if(!RecordBasedFileManager::instance()->openFile("Index",fileHandle))
 	{
@@ -539,7 +662,7 @@ RC RelationManager::destroyIndex(const string &tableName, const string &attribut
 	{
 		return -1;
 	}
-	string indexName = tableName + "_idx";
+	string indexName = tableName + "_" +attributeName + "_idx";
 	FileHandle fileHandle;	//Creating fileHandle
 	if(RecordBasedFileManager::instance()->openFile("Index",fileHandle) != 0)
 	{
@@ -577,7 +700,30 @@ RC RelationManager::destroyIndex(const string &tableName, const string &attribut
 	}
 	return -1;
 }
+RC RelationManager::indexScan(const string &tableName, const string &attributeName, const void *lowKey, const void *highKey, bool lowKeyInclusive, bool highKeyInclusive, RM_IndexScanIterator &rm_IndexScanIterator)
+{
+	vector<Attribute> recordDescriptor;
+		getAttributes(tableName,recordDescriptor);
+		int i=0;//gets the attributes
+		for(i=0;i<recordDescriptor.size();i++){
+			if(recordDescriptor[i].name.compare(attributeName)==0)
+			{
+				break;
+			}
+		}
+		if(i>=recordDescriptor.size()){
+			return -1;
+		}
 
+	if(!RecordBasedFileManager::instance()->openFile(tableName,rm_IndexScanIterator.file.fileHandle))
+		{
+			if(!IndexManager::instance()->scan(rm_IndexScanIterator.file,recordDescriptor[i],lowKey,highKey,lowKeyInclusive,highKeyInclusive,rm_IndexScanIterator.index_iter))
+			{
+				return 0;
+			}
+		}
+	    return -1;
+}
 
 // Extra credit work
 RC RelationManager::addAttribute(const string &tableName, const Attribute &attr)

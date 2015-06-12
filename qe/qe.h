@@ -199,9 +199,15 @@ class Filter : public Iterator {
         );
         ~Filter(){};
 
-        RC getNextTuple(void *data) {return QE_EOF;};
+        RC getNextTuple(void *data);// {return QE_EOF;};
         // For attribute in vector<Attribute>, name it as rel.attr
-        void getAttributes(vector<Attribute> &attrs) const{};
+        void getAttributes(vector<Attribute> &attrs) const;//{};
+
+        Iterator *iter;
+        Condition tempCond;
+
+        RC checkWithOperator(CompOp op,void *data,int offset,Attribute attr,Value value);
+
 };
 
 

@@ -4,6 +4,7 @@
 
 #include <string>
 #include <vector>
+#include "../ix/ix.h"
 
 #include "../rbf/rbfm.h"
 
@@ -30,7 +31,7 @@ public:
   };
   RBFM_ScanIterator RBFM_iter;
   FileHandle fileHandle;
-  RC close() { return -1; };
+  RC close() { return 0; };
 };
 
 
@@ -38,12 +39,18 @@ public:
 
 class RM_IndexScanIterator {
  public:
-  RM_IndexScanIterator();  	// Constructor
-  ~RM_IndexScanIterator(); 	// Destructor
+  RM_IndexScanIterator(){};  	// Constructor
+  ~RM_IndexScanIterator(){}; 	// Destructor
 
   // "key" follows the same format as in IndexManager::insertEntry()
-  RC getNextEntry(RID &rid, void *key);  	// Get next matching entry
-  RC close();             			// Terminate index scan
+  RC getNextEntry(RID &rid, void *key)
+  {
+	  return index_iter.getNextEntry(rid,key);
+			  // Get next matching entry
+  }
+  IXFileHandle file;
+  IX_ScanIterator index_iter;
+  RC close(){return 0;}            			// Terminate index scan
 };
 
 
@@ -98,6 +105,8 @@ public:
   RC destroyIndex(const string &tableName, const string &attributeName);
 
   RC indexScan(const string &tableName, const string &attributeName, const void *lowKey, const void *highKey, bool lowKeyInclusive, bool highKeyInclusive, RM_IndexScanIterator &rm_IndexScanIterator);
+
+  RC getAttributesIndex(const string &tableName, vector<string> &names);
 
 // Extra credit work (10 points)
 public:
