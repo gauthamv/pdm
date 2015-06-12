@@ -108,8 +108,6 @@ public:
 
   RC getAttributesIndex(const string &tableName, vector<string> &names);
 
-  RC getValueFromRec(void *key,void *data,vector<Attribute> recordDescriptor,Attribute attr);
-
   RC getKey(void *value,const void *data,vector<Attribute> recordDescriptor,Attribute attr);
 
 // Extra credit work (10 points)

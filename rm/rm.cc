@@ -771,6 +771,8 @@ RC RelationManager::createIndex(const string &tableName, const string &attribute
 
 	vector<string> attributes;
 	attributes.push_back(attributeName);
+	vector<Attribute> RecordDescriptor;
+
 	if(!RecordBasedFileManager::instance()->openFile(tableName,fileHandle1))
 	{
 		if(fileHandle1.getNumberOfPages() > 0) //means data is present in table
