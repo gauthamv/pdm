@@ -32,6 +32,7 @@
 //		cout << "***** createIndexforLeftC() failed.  *****" << endl;
 //		return rc;
 //	}
+//	//populateRightTable();
 //	return rc;
 //}
 //

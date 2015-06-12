@@ -134,6 +134,7 @@ class IndexScan : public Iterator
         	this->tableName = tableName;
         	this->attrName = attrName;
 
+
             // Get Attributes from RM
             rm.getAttributes(tableName, attrs);
 
@@ -190,7 +191,6 @@ class IndexScan : public Iterator
         };
 };
 
-
 class Filter : public Iterator {
     // Filter operator
     public:
@@ -230,6 +230,7 @@ class Project : public Iterator {
 class BNLJoin : public Iterator {
     // Block nested-loop join operator
     public:
+	BNLJoin(){};
         BNLJoin(Iterator *leftIn,            // Iterator of input R
                TableScan *rightIn,           // TableScan Iterator of input S
                const Condition &condition,   // Join condition
@@ -278,10 +279,9 @@ class BNLJoin : public Iterator {
         	joinAttribute=leftAttribute;
         	for(int i=0;i<rightAttribute.size();i++)
         	{
-        	      if(rightAttribute[i].name.compare(condition_c.rhsAttr)!=0);
-        	      {
+
         	    	  joinAttribute.push_back(rightAttribute[i]);
-        	      }
+
 
         	}
         	loadjoindata();
@@ -302,7 +302,7 @@ class BNLJoin : public Iterator {
         Attribute leftcond;
         Attribute rightcond;
         bool fail;
-        void loadjoindata();
+        RC loadjoindata();
         RC joinRecords(void*,void*,void*,vector<Attribute>,vector<Attribute>,vector<Attribute>);
         RC compareCache(void* data,void* outdata);
         RC getNextTuple(void *data);
@@ -318,12 +318,70 @@ class INLJoin : public Iterator {
         INLJoin(Iterator *leftIn,           // Iterator of input R
                IndexScan *rightIn,          // IndexScan Iterator of input S
                const Condition &condition   // Join condition
-        ){};
+        ){        	fail=false;
+    	condition_c=condition;
+
+
+    	left=leftIn;
+    	right=rightIn;
+
+    	leftIn->getAttributes(leftAttribute);
+    	rightIn->getAttributes(rightAttribute);
+    	int j;
+    	for(j=0;j<leftAttribute.size();j++)
+    	{
+    		if(leftAttribute[j].name.compare(condition_c.lhsAttr))
+    		{
+    			leftcond=leftAttribute[j];
+    			break;
+    		}
+    	}
+    	if(j>=leftAttribute.size())
+    	{
+    		fail=true;
+    	}
+    	if(condition_c.bRhsIsAttr)
+    	{
+    		int i;
+			for(i=0;i<rightAttribute.size();i++)
+			{
+				if(rightAttribute[i].name.compare(condition_c.rhsAttr))
+				{
+					rightcond=rightAttribute[i];
+					break;
+				}
+
+			}
+			if(i>=rightAttribute.size())
+			{
+				fail=true;
+			}
+    	}
+
+    	joinAttribute=leftAttribute;
+    	for(int i=0;i<rightAttribute.size();i++)
+    	{
+    	      if(rightAttribute[i].name.compare(condition_c.rhsAttr)!=0);
+    	      {
+    	    	  joinAttribute.push_back(rightAttribute[i]);
+    	      }
+
+    	}};
         ~INLJoin(){};
 
-        RC getNextTuple(void *data){return QE_EOF;};
+        RC getNextTuple(void *data);
         // For attribute in vector<Attribute>, name it as rel.attr
-        void getAttributes(vector<Attribute> &attrs) const{};
+        void getAttributes(vector<Attribute> &attrs) const{attrs=joinAttribute;};
+        Condition condition_c;
+        Iterator *left;
+        IndexScan *right;
+
+        vector<Attribute> leftAttribute;
+        vector<Attribute> rightAttribute;
+        vector<Attribute> joinAttribute;
+        Attribute leftcond;
+        Attribute rightcond;
+        bool fail;
 };
 
 // Optional for everyone. 10 extra-credit points

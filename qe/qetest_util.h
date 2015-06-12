@@ -5,7 +5,7 @@
 // #define _success_
 // const int success = 0;
 // #endif
-//
+// 
 #ifndef _fail_
 #define _fail_
 const int fail = -1;
@@ -252,7 +252,7 @@ void prepareLeftTuple(int attributeCount, unsigned char *nullAttributesIndicator
     memcpy((char *)buf + offset, nullAttributesIndicator, nullAttributesIndicatorActualSize);
 	offset += nullAttributesIndicatorActualSize;
 
-	// Beginning of the actual data
+	// Beginning of the actual data    
 	// Note that the left-most bit represents the first field. Thus, the offset is 7 from right, not 0.
 	// e.g., if a tuple consists of four attributes and they are all nulls, then the bit representation will be: [11110000]
 
@@ -263,7 +263,7 @@ void prepareLeftTuple(int attributeCount, unsigned char *nullAttributesIndicator
 		memcpy((char *) buf + offset, &a, sizeof(int));
 		offset += sizeof(int);
 	}
-
+	
 	// Is the B field not-NULL?
 	nullBit = nullAttributesIndicator[0] & (1 << 6);
 
@@ -293,7 +293,7 @@ void prepareRightTuple(int attributeCount, unsigned char *nullAttributesIndicato
     memcpy((char *)buf + offset, nullAttributesIndicator, nullAttributesIndicatorActualSize);
 	offset += nullAttributesIndicatorActualSize;
 
-	// Beginning of the actual data
+	// Beginning of the actual data    
 	// Note that the left-most bit represents the first field. Thus, the offset is 7 from right, not 0.
 	// e.g., if a tuple consists of four attributes and they are all nulls, then the bit representation will be: [11110000]
 
@@ -312,16 +312,16 @@ void prepareRightTuple(int attributeCount, unsigned char *nullAttributesIndicato
 		memcpy((char *) buf + offset, &c, sizeof(float));
 		offset += sizeof(float);
 	}
-
+	
 
 	// Is the C field not-NULL?
 	nullBit = nullAttributesIndicator[0] & (1 << 5);
-
+	
 	if (!nullBit) {
 		memcpy((char *) buf + offset, &d, sizeof(int));
 		offset += sizeof(int);
 	}
-
+	
 }
 
 // Prepare the tuple to left var char table in the format conforming to Insert/Update/ReadTuple and readAttribute
@@ -336,7 +336,7 @@ void prepareLeftVarCharTuple(int attributeCount, unsigned char *nullAttributesIn
     memcpy((char *)buf + offset, nullAttributesIndicator, nullAttributesIndicatorActualSize);
 	offset += nullAttributesIndicatorActualSize;
 
-	// Beginning of the actual data
+	// Beginning of the actual data    
 	// Note that the left-most bit represents the first field. Thus, the offset is 7 from right, not 0.
 	// e.g., if a tuple consists of four attributes and they are all nulls, then the bit representation will be: [11110000]
 
@@ -346,7 +346,7 @@ void prepareLeftVarCharTuple(int attributeCount, unsigned char *nullAttributesIn
 		memcpy((char *) buf + offset, &a, sizeof(int));
 		offset += sizeof(int);
 	}
-
+	
 	// Is the B field not-NULL?
 	nullBit = nullAttributesIndicator[0] & (1 << 6);
 	if (!nullBit) {
@@ -355,7 +355,7 @@ void prepareLeftVarCharTuple(int attributeCount, unsigned char *nullAttributesIn
 		memcpy((char *) buf + offset, b.c_str(), length);
 		offset += length;
 	}
-
+	
 }
 
 // Prepare the tuple to right var char table in the format conforming to Insert/Update/ReadTuple and readAttribute
@@ -370,7 +370,7 @@ void prepareRightVarCharTuple(int attributeCount, unsigned char *nullAttributesI
     memcpy((char *)buf + offset, nullAttributesIndicator, nullAttributesIndicatorActualSize);
 	offset += nullAttributesIndicatorActualSize;
 
-	// Beginning of the actual data
+	// Beginning of the actual data    
 	// Note that the left-most bit represents the first field. Thus, the offset is 7 from right, not 0.
 	// e.g., if a tuple consists of four attributes and they are all nulls, then the bit representation will be: [11110000]
 
@@ -382,14 +382,14 @@ void prepareRightVarCharTuple(int attributeCount, unsigned char *nullAttributesI
 		memcpy((char *) buf + offset, b.c_str(), length);
 		offset += length;
 	}
-
+	
 	// Is the C field not-NULL?
 	nullBit = nullAttributesIndicator[0] & (1 << 6);
 	if (!nullBit) {
 		memcpy((char *) buf + offset, &c, sizeof(float));
 		offset += sizeof(float);
 	}
-
+	
 }
 
 int populateLeftTable() {
@@ -398,7 +398,7 @@ int populateLeftTable() {
 	RC rc = success;
 	RID rid;
 	void *buf = malloc(bufSize);
-
+	
 	// GetAttributes
     vector<Attribute> attrs;
     rc = rm->getAttributes("left", attrs);
@@ -407,7 +407,7 @@ int populateLeftTable() {
     int nullAttributesIndicatorActualSize = getActualByteForNullsIndicator(attrs.size());
     unsigned char *nullsIndicator = (unsigned char *) malloc(nullAttributesIndicatorActualSize);
 	memset(nullsIndicator, 0, nullAttributesIndicatorActualSize);
-
+	
 	for (int i = 0; i < tupleCount; ++i) {
 		memset(buf, 0, bufSize);
 
@@ -435,7 +435,7 @@ int populateLargeLeftTable() {
 	RC rc = success;
 	RID rid;
 	void *buf = malloc(bufSize);
-
+	
 	// GetAttributes
     vector<Attribute> attrs;
     rc = rm->getAttributes("largeleft", attrs);
@@ -444,7 +444,7 @@ int populateLargeLeftTable() {
     int nullAttributesIndicatorActualSize = getActualByteForNullsIndicator(attrs.size());
     unsigned char *nullsIndicator = (unsigned char *) malloc(nullAttributesIndicatorActualSize);
 	memset(nullsIndicator, 0, nullAttributesIndicatorActualSize);
-
+	
 	for (int i = 0; i < largeTupleCount; ++i) {
 		memset(buf, 0, bufSize);
 
@@ -595,7 +595,7 @@ int populateRightVarCharTable() {
     int nullAttributesIndicatorActualSize = getActualByteForNullsIndicator(attrs.size());
     unsigned char *nullsIndicator = (unsigned char *) malloc(nullAttributesIndicatorActualSize);
 	memset(nullsIndicator, 0, nullAttributesIndicatorActualSize);
-
+	
 	for (int i = 0; i < varcharTupleCount; ++i) {
 		memset(buf, 0, bufSize);
 
@@ -626,7 +626,7 @@ int populateGroupTable() {
 	RC rc = success;
 	RID rid;
 	void *buf = malloc(bufSize);
-
+	
 	// GetAttributes
     vector<Attribute> attrs;
     rc = rm->getAttributes("group", attrs);
@@ -635,7 +635,7 @@ int populateGroupTable() {
     int nullAttributesIndicatorActualSize = getActualByteForNullsIndicator(attrs.size());
     unsigned char *nullsIndicator = (unsigned char *) malloc(nullAttributesIndicatorActualSize);
 	memset(nullsIndicator, 0, nullAttributesIndicatorActualSize);
-
+	
 	for (int i = 0; i < tupleCount; ++i) {
 		memset(buf, 0, bufSize);
 
@@ -680,7 +680,7 @@ int deleteAndCreateCatalog() {
 
   rc = rm->createCatalog();
   assert (rc == success && "Creating the Catalog should not fail.");
-
+  
   return rc;
 }
 
