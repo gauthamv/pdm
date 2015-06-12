@@ -2,6 +2,7 @@
 #define _qe_h_
 
 #include <vector>
+#include<cstring>
 
 #include "../rbf/rbfm.h"
 #include "../rm/rm.h"
@@ -133,7 +134,6 @@ class IndexScan : public Iterator
         	this->tableName = tableName;
         	this->attrName = attrName;
 
-
             // Get Attributes from RM
             rm.getAttributes(tableName, attrs);
 
@@ -231,12 +231,81 @@ class BNLJoin : public Iterator {
                TableScan *rightIn,           // TableScan Iterator of input S
                const Condition &condition,   // Join condition
                const unsigned numRecords     // # of records can be loaded into memory, i.e., memory block size (decided by the optimizer)
-        ){};
-        ~BNLJoin(){};
+        ){
+        	fail=false;
+        	condition_c=condition;
+        	currentpos=0;
+        	currentno=0;
+        	RecordNum=numRecords;
+        	left=leftIn;
+        	right=rightIn;
+        	leftIn->getAttributes(leftAttribute);
+        	rightIn->getAttributes(rightAttribute);
+        	int j;
+        	for(j=0;j<leftAttribute.size();j++)
+        	{
+        		if(leftAttribute[j].name.compare(condition_c.lhsAttr))
+        		{
+        			leftcond=leftAttribute[j];
+        			break;
+        		}
+        	}
+        	if(j>=leftAttribute.size())
+        	{
+        		fail=true;
+        	}
+        	if(condition_c.bRhsIsAttr)
+        	{
+        		int i;
+				for(i=0;i<rightAttribute.size();i++)
+				{
+					if(rightAttribute[i].name.compare(condition_c.rhsAttr))
+					{
+						rightcond=rightAttribute[i];
+						break;
+					}
 
-        RC getNextTuple(void *data){return QE_EOF;};
+				}
+				if(i>=rightAttribute.size())
+				{
+					fail=true;
+				}
+        	}
+
+        	joinAttribute=leftAttribute;
+        	for(int i=0;i<rightAttribute.size();i++)
+        	{
+        	      if(rightAttribute[i].name.compare(condition_c.rhsAttr)!=0);
+        	      {
+        	    	  joinAttribute.push_back(rightAttribute[i]);
+        	      }
+
+        	}
+        	loadjoindata();
+        };
+        ~BNLJoin(){
+
+        };
+        unsigned char cachedData[PAGE_SIZE];
+        int currentpos;
+        int currentno;
+        Condition condition_c;
+        Iterator *left;
+        TableScan *right;
+        unsigned RecordNum;
+        vector<Attribute> leftAttribute;
+        vector<Attribute> rightAttribute;
+        vector<Attribute> joinAttribute;
+        Attribute leftcond;
+        Attribute rightcond;
+        bool fail;
+        void loadjoindata();
+        RC joinRecords(void*,void*,void*,vector<Attribute>,vector<Attribute>,vector<Attribute>);
+        RC compareCache(void* data,void* outdata);
+        RC getNextTuple(void *data);
         // For attribute in vector<Attribute>, name it as rel.attr
-        void getAttributes(vector<Attribute> &attrs) const{};
+        void getAttributes(vector<Attribute> &attrs) const{attrs=joinAttribute;};
+        RC getcondAttributeValue(void*,void*,vector<Attribute>,Attribute);
 };
 
 
