@@ -129,6 +129,7 @@ RC Filter::getNextTuple(void *data)
 		{
 			if(tempCond.bRhsIsAttr == 0) //RhAttribute is not there
 			{
+				cout<<attrs[i].name<<char(32)<<attrs[i].type<<tempCond.lhsAttr<<endl;
 				if(attrs[i].name.compare(tempCond.lhsAttr) == 0) //means there is a match
 				{
 					if(checkWithOperator(tempCond.op,data,offset,attrs[i],tempCond.rhsValue) == 1) //TRUE
@@ -158,6 +159,101 @@ RC Filter::getNextTuple(void *data)
 	}
 	return QE_EOF;
 }
+
+Project::Project(Iterator* input, const vector<string> &attrNames)
+{
+	iter = input;
+	attributeNames = attrNames;
+}
+
+RC Project::getNextTuple(void *data)
+{
+	vector<Attribute> attrs;	//declaring the get attribute vector
+	getAttributes(attrs);
+	int noOfFields = attrs.size();
+	int nullValSize=ceil(noOfFields/8.0);
+	unsigned char *tempData = new unsigned char[200]; //temporary data before projection
+	map<string,int> myMap;	//initializing the hash map
+	for(int k=0;k<attributeNames.size();k++)
+	{
+		myMap[attributeNames[k]] = 1;
+	}
+	while(iter->getNextTuple(tempData)!=QE_EOF)
+	{
+		int offset = 0;
+		int dataOffset = 0;
+		for(int i=0;i<attrs.size();i++)
+		{
+			//cout<<attrs[i].name<<endl;
+			if(myMap[attrs[i].name] == 1)
+			{
+				if(dataOffset == 0) //copying the null information
+				{
+					memcpy((char*)data,(char*)tempData,sizeof(char)*nullValSize);
+					offset+=(sizeof(char)*nullValSize);
+					dataOffset+=(sizeof(char)*nullValSize);
+				}
+				switch(attrs[i].type)
+				{
+					case TypeInt:
+					{
+						memcpy((char*)data+dataOffset,(char*)tempData+offset,sizeof(int));
+						offset+=sizeof(int);
+						dataOffset+=sizeof(int);
+						break;
+					}
+					case TypeReal:
+					{
+						memcpy((char*)data+dataOffset,(char*)tempData+offset,sizeof(int));
+						offset+=sizeof(int);
+						dataOffset+=sizeof(int);
+						break;
+					}
+					case TypeVarChar:
+					{
+						int tempLength;
+						memcpy(&tempLength,(char*)tempData+offset,sizeof(int));
+						memcpy((char*)data+dataOffset,(char*)tempData+offset,sizeof(int));
+						dataOffset+=sizeof(int);
+						offset+=sizeof(int);
+						memcpy((char*)data+dataOffset,(char*)tempData+offset,tempLength);
+						dataOffset+=tempLength;
+						offset+=tempLength;
+						break;
+					}
+				}
+			}
+			else
+			{
+				if(attrs[i].type == TypeInt)
+				{
+					offset+=sizeof(int);
+				}
+				else if(attrs[i].type == TypeReal)
+				{
+					offset+=sizeof(int);
+				}
+				else
+				{
+					int tempLength;
+					memcpy(&tempLength,(char*)tempData+offset,sizeof(int));
+					offset+=sizeof(int)+tempLength;
+				}
+			}
+		}
+		if(dataOffset > 0)
+		{
+			delete[] tempData;
+			return 0;
+		}
+	}
+
+	return QE_EOF;
+}
+
+
+
+
 RC BNLJoin::joinRecords(void* dataleft,void* dataright,void* outdata,vector<Attribute> joinAttr,vector<Attribute> leftAtt,vector<Attribute> rightAtt)
 {
 	int leftnull=ceil(leftAtt.size()/8.0);
@@ -255,7 +351,7 @@ RC Filter::checkWithOperator(CompOp op,void *data,int offset,Attribute attr,Valu
 				{
 					memcpy(&tempFloat,(char*)data+offset,sizeof(int));
 					memcpy(&tempFloatComp,(char*)(value.data),sizeof(int));
-					if(tempInt == tempIntComp)
+					if(tempFloat == tempFloatComp)
 					{
 						return 1;
 					}
@@ -306,7 +402,7 @@ RC Filter::checkWithOperator(CompOp op,void *data,int offset,Attribute attr,Valu
 				{
 					memcpy(&tempFloat,(char*)data+offset,sizeof(int));
 					memcpy(&tempFloatComp,(char*)(value.data),sizeof(int));
-					if(tempInt < tempIntComp)
+					if(tempFloat < tempFloatComp)
 					{
 						return 1;
 					}
@@ -353,7 +449,7 @@ RC Filter::checkWithOperator(CompOp op,void *data,int offset,Attribute attr,Valu
 				{
 					memcpy(&tempFloat,(char*)data+offset,sizeof(int));
 					memcpy(&tempFloatComp,(char*)(value.data),sizeof(int));
-					if(tempInt > tempIntComp)
+					if(tempFloat > tempFloatComp)
 					{
 						return 1;
 					}
@@ -400,7 +496,7 @@ RC Filter::checkWithOperator(CompOp op,void *data,int offset,Attribute attr,Valu
 					{
 						memcpy(&tempFloat,(char*)data+offset,sizeof(int));
 						memcpy(&tempFloatComp,(char*)(value.data),sizeof(int));
-						if(tempInt <= tempIntComp)
+						if(tempFloat <= tempFloatComp)
 						{
 							return 1;
 						}
@@ -434,7 +530,7 @@ RC Filter::checkWithOperator(CompOp op,void *data,int offset,Attribute attr,Valu
 				{
 					memcpy(&tempInt,(char*)data+offset,sizeof(int));
 					memcpy(&tempIntComp,(char*)(value.data),sizeof(int));
-					if(tempInt < tempIntComp)
+					if(tempInt >= tempIntComp)
 					{
 						return 1;
 					}
@@ -447,7 +543,7 @@ RC Filter::checkWithOperator(CompOp op,void *data,int offset,Attribute attr,Valu
 				{
 					memcpy(&tempFloat,(char*)data+offset,sizeof(int));
 					memcpy(&tempFloatComp,(char*)(value.data),sizeof(int));
-					if(tempInt < tempIntComp)
+					if(tempFloat >= tempFloatComp)
 					{
 						return 1;
 					}
@@ -465,7 +561,7 @@ RC Filter::checkWithOperator(CompOp op,void *data,int offset,Attribute attr,Valu
 					char *str2 = new char[length2];
 					string tempChar = string(str1);
 					string tempCharComp = string(str2);
-					if(tempChar.compare(tempCharComp) < 0)
+					if(tempChar.compare(tempCharComp) >= 0)
 					{
 						return 1;
 					}
@@ -494,7 +590,7 @@ RC Filter::checkWithOperator(CompOp op,void *data,int offset,Attribute attr,Valu
 				{
 					memcpy(&tempFloat,(char*)data+offset,sizeof(int));
 					memcpy(&tempFloatComp,(char*)(value.data),sizeof(int));
-					if(tempInt != tempIntComp)
+					if(tempFloat != tempFloatComp)
 					{
 						return 1;
 					}
@@ -527,6 +623,11 @@ RC Filter::checkWithOperator(CompOp op,void *data,int offset,Attribute attr,Valu
 }
 
 void Filter::getAttributes(vector<Attribute> &attrs) const
+{
+	iter->getAttributes(attrs);
+}
+
+void Project::getAttributes(vector<Attribute> &attrs) const
 {
 	iter->getAttributes(attrs);
 }

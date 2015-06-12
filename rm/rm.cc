@@ -466,25 +466,47 @@ RC RelationManager::insertTuple(const string &tableName, const void *data, RID &
 	//checking all the attribute names that match
 	for(int i=0;i<Names.size();i++)
 	{
-		cout<<"Name Size: "<<Names.size()<<endl;
+		//cout<<"Name Size: "<<Names.size()<<endl;
 		for(int j=0;j<recordDescriptor.size();j++)
 		{
-			cout<<"Attribute Name: "<<Names[i]<<endl;
-			cout<<"recordDescriptorName: "<<recordDescriptor[j].name<<endl;
+			//cout<<"Attribute Name: "<<Names[i]<<endl;
+			//cout<<"recordDescriptorName: "<<recordDescriptor[j].name<<endl;
 			if(Names[i].compare(recordDescriptor[j].name) == 0) //attribute name matches
 			{
 				string indexName = tableName + "_" + Names[i] + "_idx";
-				cout<<indexName<<endl;
+				//cout<<indexName<<endl;
 				if(!IndexManager::instance()->openFile(indexName,ixfileHandle))
 				{
-					void *key;
+					unsigned char *key = new unsigned char[200];
 					//allocating space
 
 					//getting the key
 					getKey(key,data,recordDescriptor,recordDescriptor[j]);
+
+					unsigned char *key1;
+					if((recordDescriptor[j].type == TypeInt) || (recordDescriptor[j].type == TypeReal))
+					{
+						key1 = new unsigned char[sizeof(int)];
+						memcpy(key1,(char*)key,sizeof(int));
+					}
+					else
+					{
+						int tempLength1;
+						memcpy(&tempLength1,(char*)key,sizeof(int));
+						key1 = new unsigned char[tempLength1];
+						memcpy(key1,(char*)key,sizeof(int));
+						memcpy(key1,(char*)key+sizeof(int),tempLength1);
+					}
+
+					//int temp1;
+					//memcpy(&temp1,(char*)key1,sizeof(int));
+					//cout<<temp1<<endl;
+
 					//writing the index entry
 					if(!IndexManager::instance()->insertEntry(ixfileHandle,recordDescriptor[j],key,rid))
 					{
+						delete[] key1;
+						delete[] key;
 						success = success & 1;
 					}
 				}
@@ -537,11 +559,9 @@ RC RelationManager::getKey(void *value,const void *data,vector<Attribute> record
 				{
 					if(recordDescriptor[i].name.compare(attr.name)==0)
 					{
-						value=new int;
-						int temp;
-						memcpy(value,(char*)data+recordSize,sizeof(int));
-						memcpy(&temp,value,sizeof(int));
-						cout<<temp<<endl;
+						//value=new int;
+						//value = new unsigned char[sizeof(int)];
+						memcpy((char*)value,(char*)data+recordSize,sizeof(int));
 						return 0;
 					}
 					recordSize=recordSize+4;
@@ -552,8 +572,8 @@ RC RelationManager::getKey(void *value,const void *data,vector<Attribute> record
 				{
 					if(recordDescriptor[i].name.compare(attr.name)==0)
 					{
-						value=new float;
-						memcpy(value,(char*)data+recordSize,sizeof(float));
+						//value=new float;
+						memcpy((char*)value,(char*)data+recordSize,sizeof(float));
 						return 0;
 					}
 					recordSize=recordSize+4;
@@ -566,8 +586,11 @@ RC RelationManager::getKey(void *value,const void *data,vector<Attribute> record
 					memcpy(&varcharSize,(char*)data+recordSize,4);
 					if(recordDescriptor[i].name.compare(attr.name)==0)
 					{
-						value=new char[sizeof(int)+varcharSize];
-						memcpy(value,(char*)data+recordSize,sizeof(int)+varcharSize);
+						//value=new char[sizeof(int)+varcharSize];
+						int tempLength;
+						memcpy((char*)value,(char*)data+recordSize,sizeof(int));
+						memcpy(&tempLength,(char*)data+recordSize,sizeof(int));
+						memcpy((char*)value+sizeof(int),(char*)data+recordSize+sizeof(int),tempLength);
 						return 0;
 					}
 					recordSize=recordSize+4+varcharSize;
@@ -768,20 +791,110 @@ RC RelationManager::createIndex(const string &tableName, const string &attribute
 	}
 	//Check if the data table for this index is already present
 	FileHandle fileHandle1;
-
-	vector<string> attributes;
-	attributes.push_back(attributeName);
-	vector<Attribute> RecordDescriptor;
-
 	if(!RecordBasedFileManager::instance()->openFile(tableName,fileHandle1))
 	{
-		if(fileHandle1.getNumberOfPages() > 0) //means data is present in table
+		if(fileHandle1.getNumberOfPages() == 0) //means data is not present in table
 		{
-			if(!RecordBasedFileManager::instance()->scan(fileHandle1,indexDescriptor,"",NO_OP,varSize,indexVector,indexScan))
+			if(success == 1)
+			{
+				return 0;
+			}
 		}
 	}
 
+	//Opening the index file
+	IXFileHandle ixfileHandle;
+	if(IndexManager::instance()->openFile(indexName,ixfileHandle) == -1)
+	{
+		return -1;
+	}
 
+	vector<string> attributes;
+	attributes.push_back(attributeName);
+	vector<Attribute> recordDescriptor;
+	RBFM_ScanIterator tableScan;
+	RID tableRID;
+	if(getAttributes(tableName,recordDescriptor) == -1)	//getting the attribute vector
+	{
+		return -1;
+	}
+
+	AttrType tempType;
+	unsigned char* tabletemp;
+	Attribute attributeTemp;
+	for(int i=0;i<recordDescriptor.size();i++)
+	{
+		if(recordDescriptor[i].name.compare(attributeName) == 0)
+		{
+			if((recordDescriptor[i].type == TypeInt) || (recordDescriptor[i].type == TypeReal))
+			{
+				tabletemp=new unsigned char[1+sizeof(int)];
+				if(recordDescriptor[i].type == TypeInt)
+				{
+					tempType = TypeInt;
+					attributeTemp = recordDescriptor[i];
+					break;
+				}
+				else
+				{
+					tempType = TypeReal;
+					attributeTemp = recordDescriptor[i];
+					break;
+				}
+			}
+			else
+			{
+				tabletemp=new unsigned char[100];
+				tempType = TypeVarChar;
+				attributeTemp = recordDescriptor[i];
+				break;
+			}
+		}
+	}
+
+	void *key;
+	if(!RecordBasedFileManager::instance()->scan(fileHandle1,recordDescriptor,"",NO_OP,NULL,attributes,tableScan))
+	{
+		while(tableScan.getNextRecord(tableRID,tabletemp) != RM_EOF)
+		{
+			switch(tempType)
+			{
+				case TypeInt:
+				{
+					key = new unsigned char[sizeof(int)];
+					memcpy((char*)key,tabletemp+sizeof(char),sizeof(int));
+					break;
+				}
+				case TypeReal:
+				{
+					key = new unsigned char[sizeof(int)];
+					memcpy((char*)key,tabletemp+sizeof(char),sizeof(int));
+					break;
+				}
+				case TypeVarChar:
+				{
+					int tempLength;
+					memcpy(&tempLength,tabletemp+sizeof(char),sizeof(int));
+					key = new unsigned char[tempLength+sizeof(int)];
+					memcpy((char*)key,tabletemp+sizeof(char),sizeof(int));
+					memcpy((char*)key+sizeof(int),tabletemp+sizeof(char)+sizeof(int),tempLength);
+					break;
+				}
+			}
+
+			if(!IndexManager::instance()->insertEntry(ixfileHandle,attributeTemp,key,tableRID))
+			{
+				delete[] key;
+				success = success & 1;
+			}
+
+		}
+	}
+
+	if(success == 1)
+	{
+		return 0;
+	}
 	return -1;
 }
 
@@ -832,7 +945,7 @@ RC RelationManager::destroyIndex(const string &tableName, const string &attribut
 RC RelationManager::indexScan(const string &tableName, const string &attributeName, const void *lowKey, const void *highKey, bool lowKeyInclusive, bool highKeyInclusive, RM_IndexScanIterator &rm_IndexScanIterator)
 {
 	string indexName = tableName + "_" + attributeName + "_idx";
-	cout<<indexName<<endl;
+	//cout<<indexName<<endl;
 	vector<Attribute> recordDescriptor;
 		getAttributes(tableName,recordDescriptor);
 		int i=0;//gets the attributes
