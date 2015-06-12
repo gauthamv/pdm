@@ -747,6 +747,7 @@ RC RelationManager::scan(const string &tableName, const string &conditionAttribu
 
 RC RelationManager::createIndex(const string &tableName, const string &attributeName)
 {
+	int success = 0;
 	string indexName = tableName + "_" + attributeName + "_idx"; //Creating the name for the index file
 	FileHandle fileHandle;
 	if(IndexManager::instance()->createFile(indexName) == -1)
@@ -762,9 +763,23 @@ RC RelationManager::createIndex(const string &tableName, const string &attribute
 		RID dummy_rid;	//dummy RID
 		if(!RecordBasedFileManager::instance()->insertRecord(fileHandle, recordDescriptor, recPtr, dummy_rid))
 		{
-			return 0;
+			success = 1;
 		}
 	}
+	//Check if the data table for this index is already present
+	FileHandle fileHandle1;
+
+	vector<string> attributes;
+	attributes.push_back(attributeName);
+	if(!RecordBasedFileManager::instance()->openFile(tableName,fileHandle1))
+	{
+		if(fileHandle1.getNumberOfPages() > 0) //means data is present in table
+		{
+			if(!RecordBasedFileManager::instance()->scan(fileHandle1,indexDescriptor,"",NO_OP,varSize,indexVector,indexScan))
+		}
+	}
+
+
 	return -1;
 }
 
